@@ -5,7 +5,7 @@ import (
 	"database/sql/driver"
 	_ "github.com/go-sql-driver/mysql"
 	//_ "github.com/mattn/go-sqlite3"  // SQLite3 database driver
-	"opao/utils"
+	"github.com/OblivionOcean/opao/utils"
 	"reflect"
 	"strings"
 	"unsafe"

@@ -82,9 +82,6 @@ func Ints2Strings(ints []int) []string {
 }
 
 func ToString(src any) string {
-	if src == nil {
-		return ""
-	}
 	switch s := src.(type) {
 	case nil:
 		return ""
@@ -134,7 +131,9 @@ func ToString(src any) string {
 		}
 	case reflect.Value:
 		src = s.Interface()
-		return ToString(src)
+		return toString(src)
+	case time.Time:
+		return s.Format(time.RFC3339Nano)
 	case fmt.Stringer:
 		return s.String()
 	case io.Reader:
@@ -142,10 +141,8 @@ func ToString(src any) string {
 		if e != nil {
 			panic(e)
 		} else {
-			return ToString(byt)
+			return toString(byt)
 		}
-	case time.Time:
-		return s.Format(time.RFC3339Nano)
 	case []byte:
 		byts := s
 		return *(*string)(unsafe.Pointer(&byts))
@@ -153,7 +150,7 @@ func ToString(src any) string {
 		str := ""
 		ls := s
 		for k := 0; k < len(ls); k++ {
-			str += ", " + ToString(ls[k])
+			str += ", " + toString(ls[k])
 		}
 		if len(str) > 2 {
 			return str[2:]
@@ -162,11 +159,20 @@ func ToString(src any) string {
 	case any, *any:
 		sv := reflect.ValueOf(src)
 		if sv.Kind() == reflect.Ptr {
-			return ToString(sv.Elem().Interface())
+			return toString(sv.Elem().Interface())
 		} else if sv.Kind() == reflect.Slice {
-			return ToString(src.([]byte))
+			return toString(src.([]byte))
+		} else if sv.Kind() == reflect.Map {
+			mapKeys := sv.MapKeys()
+			mapKeysLength := len(mapKeys)
+			tmp:= "{"
+			for i:=0;i<mapKeysLength;i++ {
+				key := toString(mapKeys[i])
+			    tmp += key + ": " +  toString(sv.MapIndex(mapKeys[i]).Interface()) + ", "
+			}
+			return tmp + "}"
 		} else {
-			return ToString(s)
+			return "<Type " + sv.Type().String() + ">"
 		}
 	}
 	return ""
@@ -271,6 +277,8 @@ func ToBytes(src any) []byte {
 			return ToBytes(sv.Elem().Interface())
 		} else if sv.Kind() == reflect.Slice {
 			return s.([]byte)
+		} else if sv.Kind() == reflect.Map {
+			return ToBytes(ToString(s))
 		} else {
 			return ToBytes(s)
 		}

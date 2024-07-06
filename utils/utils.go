@@ -52,18 +52,6 @@ func ContainsInSlice(items []string, item string) bool {
 	return false
 }
 
-type Error struct {
-	err string
-}
-
-func (err *Error) Error() string {
-	return err.err
-}
-
-func NewError(e string) *Error {
-	return &Error{err: e}
-}
-
 func Strings2Ints(strs []string) []int {
 	ints := []int{}
 	for i := 0; i < len(strs); i++ {
@@ -131,7 +119,7 @@ func ToString(src any) string {
 		}
 	case reflect.Value:
 		src = s.Interface()
-		return toString(src)
+		return ToString(src)
 	case time.Time:
 		return s.Format(time.RFC3339Nano)
 	case fmt.Stringer:
@@ -141,7 +129,7 @@ func ToString(src any) string {
 		if e != nil {
 			panic(e)
 		} else {
-			return toString(byt)
+			return ToString(byt)
 		}
 	case []byte:
 		byts := s
@@ -150,7 +138,7 @@ func ToString(src any) string {
 		str := ""
 		ls := s
 		for k := 0; k < len(ls); k++ {
-			str += ", " + toString(ls[k])
+			str += ", " + ToString(ls[k])
 		}
 		if len(str) > 2 {
 			return str[2:]
@@ -159,16 +147,16 @@ func ToString(src any) string {
 	case any, *any:
 		sv := reflect.ValueOf(src)
 		if sv.Kind() == reflect.Ptr {
-			return toString(sv.Elem().Interface())
+			return ToString(sv.Elem().Interface())
 		} else if sv.Kind() == reflect.Slice {
-			return toString(src.([]byte))
+			return ToString(src.([]byte))
 		} else if sv.Kind() == reflect.Map {
 			mapKeys := sv.MapKeys()
 			mapKeysLength := len(mapKeys)
-			tmp:= "{"
-			for i:=0;i<mapKeysLength;i++ {
-				key := toString(mapKeys[i])
-			    tmp += key + ": " +  toString(sv.MapIndex(mapKeys[i]).Interface()) + ", "
+			tmp := "{"
+			for i := 0; i < mapKeysLength; i++ {
+				key := ToString(mapKeys[i])
+				tmp += key + ": " + ToString(sv.MapIndex(mapKeys[i]).Interface()) + ", "
 			}
 			return tmp + "}"
 		} else {
@@ -179,9 +167,6 @@ func ToString(src any) string {
 }
 
 func ToBytes(src any) []byte {
-	if src == nil {
-		return nil
-	}
 	switch s := src.(type) {
 	case nil:
 		return nil

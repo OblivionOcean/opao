@@ -6,13 +6,14 @@ import (
 	"reflect"
 	"sync"
 	"unsafe"
+
+	"github.com/OblivionOcean/opao/internal/runtime"
 )
 
 type ORM struct {
-	objectORM  func(*sql.DB, any, reflect.Type, string, []*Elem, error) ObjectORM
-	caches     map[reflect.Type]*Cache
-	cachesLock sync.RWMutex
-	conn       *sql.DB
+	objectORM func(*sql.DB, any, reflect.Type, string, []Elem, error) ObjectORM
+	caches    *SafeCache // map[reflect.Type]Cache
+	conn      *sql.DB
 }
 
 type ObjectORM interface {
@@ -28,58 +29,67 @@ type Elem struct {
 	Index int
 	Type  reflect.Type
 	Tag   string
-	Value reflect.Value
+	Value uintptr
 }
 
 type Cache struct {
-	Elems   []*Elem
+	Elems   []Elem
 	Table   string
 	ObjType reflect.Type
 }
 
 func (elem *Elem) Get() any {
-	return elem.Value.Interface()
+	if elem.Value == 0 {
+		return nil
+	}
+	return *(*any)(unsafe.Pointer(elem.Value))
 }
 
-func (elem *Elem) Set(val any) {
-	elem.Value.Set(reflect.ValueOf(val))
+func (elem *Elem) Set(val any) error {
+	if elem.Value == 0 {
+		elem.Value = uintptr(unsafe.Pointer(&val))
+	}
+	if reflect.TypeOf(elem.Get()) != reflect.TypeOf(val) {
+		return errors.New("type mismatch")
+	}
+	// 向指针写入值
+	*(*any)(unsafe.Pointer(elem.Value)) = val
+	return nil
 }
 
-func (orm *ORM) Init(conn *sql.DB, driver func(*sql.DB, any, reflect.Type, string, []*Elem, error) ObjectORM) {
+func (orm *ORM) Init(conn *sql.DB, driver func(*sql.DB, any, reflect.Type, string, []Elem, error) ObjectORM) {
 	orm.objectORM = driver
 	orm.conn = conn
+	orm.caches = &SafeCache{cache: map[reflect.Type]Cache{}}
 }
 
 func (o *ORM) Register(tableName string, object any) error {
 	objType := reflect.TypeOf(object)
 	if objType.Kind() == reflect.Ptr {
-		ptr := reflect.ValueOf(object).Elem()
-		objType = ptr.Type()
-	} else if objType.Kind() != reflect.Struct {
+		objType = reflect.TypeOf(object).Elem()
+	}
+	objTypePtr := runtime.Type2StructType(objType)
+	if objTypePtr == nil {
 		return errors.New("object must be a struct or a pointer to a struct")
 	}
-	numIndex := objType.NumField()
-	elems := make([]*Elem, numIndex)
+	numIndex := runtime.TypeFieldLen(objTypePtr)
+	elems := make([]Elem, numIndex)
+	field := &reflect.StructField{}
 	for i := 0; i < numIndex; i++ {
-		fieldType := objType.Field(i)
-		tagName := fieldType.Tag.Get("db")
-		if tagName == "" {
+		runtime.GetFieldAndReused(field, objTypePtr, i)
+		tagName, ok := runtime.GetTag(field.Tag, "db")
+		if !ok {
 			continue
 		}
-		elems = append(elems, &Elem{
-			Index: i,
-			Type:  fieldType.Type,
-			Tag:   tagName,
-		})
+		elems[i].Index = i
+		elems[i].Type = field.Type
+		elems[i].Tag = tagName
 	}
-	cache := &Cache{
+	o.caches.Store(objType, Cache{
 		Elems:   elems,
 		Table:   tableName,
 		ObjType: objType,
-	}
-	o.cachesLock.Lock()
-	o.caches[objType] = cache
-	o.cachesLock.Unlock()
+	})
 	return nil
 }
 
@@ -94,21 +104,40 @@ func (o *ORM) Load(object any) (orm ObjectORM) {
 		orm = o.objectORM(nil, nil, nil, "", nil, errors.New("object must be a pointer to a struct"))
 		return
 	}
-	o.cachesLock.RLock()
-	if cache, ok := o.caches[objType]; ok {
-		Elems := []*Elem{}
-		copy(Elems, cache.Elems)
-		ElemsLength := len(Elems)
+	if rawCache, ok := o.caches.Load(objType); ok {
+		cache := rawCache
+		ElemsLength := len(cache.Elems)
 		for i := 0; i < ElemsLength; i++ {
-			Elems[i].Value = reflect.NewAt(cache.Elems[i].Type, unsafe.Pointer(objValue.Field(cache.Elems[i].Index).UnsafeAddr())).Elem()
+			cache.Elems[i].Value = uintptr(objValue.Field(cache.Elems[i].Index).UnsafePointer())
 		}
-		orm = o.objectORM(o.conn, object, cache.ObjType, cache.Table, Elems, nil)
-		o.cachesLock.RUnlock()
+		orm = o.objectORM(o.conn, object, cache.ObjType, cache.Table, cache.Elems, nil)
 		return
 	} else {
 		orm = o.objectORM(nil, nil, nil, "", nil, errors.New("object not registered"))
-		o.cachesLock.RUnlock()
 		return
 	}
+}
+
+type SafeCache struct {
+	mu    sync.RWMutex
+	cache map[reflect.Type]Cache
+}
+
+func NewSafeCache() *SafeCache {
+	return &SafeCache{
+		cache: make(map[reflect.Type]Cache),
+	}
+}
+
+func (sc *SafeCache) Load(key reflect.Type) (value Cache, ok bool) {
+	sc.mu.RLock()
+	defer sc.mu.RUnlock()
+	value, ok = sc.cache[key]
 	return
+}
+
+func (sc *SafeCache) Store(key reflect.Type, value Cache) {
+	sc.mu.Lock()
+	defer sc.mu.Unlock()
+	sc.cache[key] = value
 }

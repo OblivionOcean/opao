@@ -11,33 +11,23 @@ import (
 	"unsafe"
 )
 
+// go:inline
 func String2Slice(s string) (b []byte) {
-	type StringHeader struct {
-		Data uintptr
-		Len  int
-	}
-	type SliceHeader struct {
-		Data uintptr
-		Len  int
-		Cap  int
-	}
-	bh := (*SliceHeader)(unsafe.Pointer(&b))
-	sh := (*StringHeader)(unsafe.Pointer(&s))
-	bh.Data = sh.Data
-	bh.Len = sh.Len
-	bh.Cap = sh.Len
-	return
+	return unsafe.Slice(unsafe.StringData(s), len(s))
 }
 
+// go:inline
 func Bytes2String(b []byte) string {
-	return *(*string)(unsafe.Pointer(&b))
-}
+	return unsafe.String(&b[0], len(b))
+}	
 
+// go:inline
 func Byte2String(b byte) string {
-	bs := []byte{b}
-	return *(*string)(unsafe.Pointer(&bs))
+	return unsafe.String(&b, 1)
 }
 
+
+// go:inline
 func BytesCombine2(pBytes ...[]byte) []byte {
 	return bytes.Join(pBytes, String2Slice(""))
 }

@@ -15,13 +15,13 @@ import (
 type MySQL struct {
 	Table   string
 	err     error
-	Elems   []*support.Elem
+	Elems   []support.Elem
 	conn    *sql.DB
 	obj     any
 	objType reflect.Type
 }
 
-func NewMySQL(conn *sql.DB, obj any, objType reflect.Type, table string, Elems []*support.Elem, err error) support.ObjectORM {
+func NewMySQL(conn *sql.DB, obj any, objType reflect.Type, table string, Elems []support.Elem, err error) support.ObjectORM {
 	if err != nil {
 		return &MySQL{err: err}
 	}

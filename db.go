@@ -1,4 +1,4 @@
-package internal
+package opao
 
 import (
 	"database/sql"
@@ -25,7 +25,7 @@ func NewDatabase(sqlDriverName, linkInfo string) (*Database, error) {
 	db := &Database{Conn: conn}
 	db.sqlDriverName = sqlDriverName
 	db.ORM = support.ORM{}
-	var driver func(*sql.DB, any, reflect.Type, string, []*support.Elem, error) support.ObjectORM
+	var driver func(*sql.DB, any, reflect.Type, string, []support.Elem, error) support.ObjectORM
 
 	switch db.sqlDriverName {
 	case "mysql":

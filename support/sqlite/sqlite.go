@@ -15,13 +15,13 @@ import (
 type Sqlite struct {
 	Table   string
 	err     error
-	Elems   []*support.Elem
+	Elems   []support.Elem
 	conn    *sql.DB
 	obj     any
 	objType reflect.Type
 }
 
-func NewSqlite(conn *sql.DB, obj any, objType reflect.Type, table string, Elems []*support.Elem, err error) support.ObjectORM {
+func NewSqlite(conn *sql.DB, obj any, objType reflect.Type, table string, Elems []support.Elem, err error) support.ObjectORM {
 	if err != nil {
 		return &Sqlite{err: err}
 	}

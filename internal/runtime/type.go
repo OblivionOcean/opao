@@ -119,7 +119,7 @@ func GetTag(tag reflect.StructTag, key string) (value string, ok bool) {
 				}
 				return value, true
 			}
-			return qvalue, true
+			return qvalue[1:len(qvalue)-1], true
 		}
 	}
 	return "", false

@@ -288,3 +288,17 @@ func ValIsNil(val reflect.Value) bool {
 	}
 	return false
 }
+
+func Used(...any) {}
+
+func GetSlicesSize(slice [][]byte) int {
+	sliceLength := len(slice)
+	size := 0
+	if sliceLength == 0 {
+	    return 0
+	}
+    for i := 0; i < sliceLength; i++ {
+        size += len(slice[i])
+    }
+	return size
+}

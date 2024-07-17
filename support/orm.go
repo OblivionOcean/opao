@@ -108,7 +108,7 @@ func (o *ORM) Load(object any) (orm ObjectORM) {
 		cache := rawCache
 		ElemsLength := len(cache.Elems)
 		for i := 0; i < ElemsLength; i++ {
-			cache.Elems[i].Value = uintptr(objValue.Field(cache.Elems[i].Index).UnsafePointer())
+			cache.Elems[i].Value = uintptr(unsafe.Pointer(objValue.Field(cache.Elems[i].Index).UnsafeAddr()))
 		}
 		orm = o.objectORM(o.conn, object, cache.ObjType, cache.Table, cache.Elems, nil)
 		return

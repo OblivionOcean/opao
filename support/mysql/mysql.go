@@ -3,9 +3,7 @@ package mysql
 import (
 	"database/sql"
 	"database/sql/driver"
-	"errors"
 	"reflect"
-	"strings"
 	"unsafe"
 
 	"github.com/OblivionOcean/opao/support"
@@ -35,47 +33,125 @@ func (qt *MySQL) Error() error {
 // Update updates the database record based on the provided query string and values
 func (qt *MySQL) Update(queryString string, queryValue ...any) error {
 	// Fetch tag and corresponding stored data
-	tagNames, values := []string{}, []any{}
-	for _, val := range qt.Elems {
-		if val.Get() == nil {
-			continue
+	elemsLeng := len(qt.Elems)
+	tabNameLen := len(qt.Table)
+	queryStringLen := len(queryString)
+	elemsNameLength := 0
+	for i := 0; i < elemsLeng; i++ {
+		elemsNameLength += len(qt.Elems[i].Tag) + 4
+		if i != elemsLeng-1 {
+			elemsNameLength += 1
 		}
-		tagNames = append(tagNames, "`"+val.Tag+"`")
-		values = append(values, val.Get())
 	}
-	values = append(values, queryValue...)
-	_, err := qt.conn.Exec("UPDATE `"+qt.Table+"` SET "+strings.Join(tagNames, "=?,")+"=? WHERE "+queryString, values...)
+	var tmp []byte
+	if queryString == "" {
+		tmp = make([]byte, 15+tabNameLen+elemsNameLength)
+	} else {
+		tmp = make([]byte, 21+tabNameLen+queryStringLen+elemsNameLength)
+	}
+	copy(tmp[:8], "UPDATE `")
+	copy(tmp[8:8+tabNameLen], qt.Table)
+	copy(tmp[8+tabNameLen:15+tabNameLen], "` SET ")
+	count := 15 + tabNameLen
+	values := make([]any, elemsLeng+len(queryValue))
+	for i := 0; i < elemsLeng; i++ {
+		tmp[count] = '`'
+		count++
+		copy(tmp[count:count+len(qt.Elems[i].Tag)], qt.Elems[i].Tag)
+		count += len(qt.Elems[i].Tag)
+		copy(tmp[count:count+3], "`=?")
+		count += 3
+		if i != elemsLeng-1 {
+			tmp[count] = ','
+			count++
+		}
+		values[i] = qt.Elems[i].Get()
+	}
+	if queryString != "" {
+		copy(tmp[count:count+6], " WHERE ")
+		copy(tmp[count+6:], queryString)
+		copy(values[elemsLeng:], queryValue)
+
+	}
+	//_, err := qt.conn.Exec("DELETE FROM `"+qt.Table+"` WHERE "+queryString, queryValue...)
+	var err error
 	return err
 }
 
 // Delete deletes database records based on the provided query string and values
 func (qt *MySQL) Delete(queryString string, queryValue ...any) error {
-	_, err := qt.conn.Exec("DELETE FROM `"+qt.Table+"` WHERE "+queryString, queryValue...)
+	tabNameLen := len(qt.Table)
+	queryStringLen := len(queryString)
+	var err error
+	var tmp []byte
+	if queryString == "" {
+		tmp = make([]byte, 14+tabNameLen)
+	} else {
+		tmp = make([]byte, 20+tabNameLen+queryStringLen)
+	}
+	copy(tmp[:13], "DELETE FROM `")
+	copy(tmp[13:13+tabNameLen], qt.Table)
+	tmp[13+tabNameLen] = '`'
+	if queryString != "" {
+		copy(tmp[14+tabNameLen:20+tabNameLen], " WHERE ")
+		copy(tmp[20+tabNameLen:], queryString)
+	}
+	//_, err := qt.conn.Exec("DELETE FROM `"+qt.Table+"` WHERE "+queryString, queryValue...)
 	return err
 }
 
 // Insert inserts data into the database using INSERT operation
 func (qt *MySQL) Create() error {
-	tagNames, values := []string{}, []any{}
-	for _, val := range qt.Elems {
-		if val.Get() == nil {
-			continue
+	elemsLeng := len(qt.Elems)
+	tabNameLen := len(qt.Table)
+	elemsNameLength := 0
+	for i := 0; i < elemsLeng; i++ {
+		elemsNameLength += len(qt.Elems[i].Tag) + 3
+		if i != elemsLeng-1 {
+			elemsNameLength += 2
 		}
-		tagNames = append(tagNames, "`"+val.Tag+"`")
-		values = append(values, val.Get())
 	}
-	_, err := qt.conn.Exec("INSERT INTO `"+qt.Table+"` ("+strings.Join(tagNames, ",")+") VALUES ("+strings.Repeat("?,", len(tagNames)-1)+"?);", values...)
+	tmp := make([]byte, 29+tabNameLen+elemsNameLength)
+	copy(tmp[:13], "INSERT INTO `")
+	copy(tmp[13:13+tabNameLen], qt.Table)
+	copy(tmp[13+tabNameLen:16+tabNameLen], "` (")
+	count := 16 + tabNameLen
+	values := make([]any, elemsLeng)
+	for i := 0; i < elemsLeng; i++ {
+		tmp[count] = '`'
+		count++
+		copy(tmp[count:count+len(qt.Elems[i].Tag)], qt.Elems[i].Tag)
+		count += len(qt.Elems[i].Tag)
+		tmp[count] = '`'
+		count++
+		values[i] = qt.Elems[i].Get()
+		if i != elemsLeng-1 {
+			tmp[count] = ','
+			count++
+		}
+	}
+	copy(tmp[count:count+10], ") VALUES (")
+	count += 10
+	for i := 0; i < elemsLeng; i++ {
+		tmp[count] = '?'
+		count++
+		if i != elemsLeng-1 {
+			tmp[count] = ','
+			count++
+		}
+	}
+	copy(tmp[count:count+2], ");")
+	utils.Used(tmp)
+	//fmt.Println(utils.Bytes2String(tmp))
+	var err error
 	return err
 }
 
 // Select retrieves data from the database based on the provided query string and values
 func (qt *MySQL) FindAll(queryString string, queryValue ...any) ([]any, error) {
 	// Retrieve objtype type through reflection, then query the data and convert it to the type of objType
-	tagNames := []string{}
-	for _, val := range qt.Elems {
-		tagNames = append(tagNames, "`"+val.Tag+"`")
-	}
-	rows, err := qt.conn.Query("SELECT * FROM `"+qt.Table+"` WHERE "+queryString, queryValue...)
+	rows, err := qt.conn.Query(qt.getSelectSql(queryString), queryValue...)
+	elemsLen := len(qt.Elems)
 	if err != nil {
 		return nil, err
 	}
@@ -85,23 +161,15 @@ func (qt *MySQL) FindAll(queryString string, queryValue ...any) ([]any, error) {
 	var objs []any
 	for rows.Next() {
 		obj := reflect.New(qt.objType).Elem()
-		columns, _ := rows.Columns()
-		Scans := make([]any, len(columns))
-		values := make([]any, len(columns))
-		row := make(map[string]any, len(columns))
-		for e := 0; e < len(columns); e++ {
-			Scans[e] = &values[e]
-			row[columns[e]] = &values[e]
-		}
+		Scans := make([]any, elemsLen)
 		err := rows.Scan(Scans...)
 		if err != nil {
 			return nil, err
 		}
-		for i := 0; i < len(qt.Elems); i++ {
+		for i := 0; i < elemsLen; i++ {
 			field := obj.Field(qt.Elems[i].Index)
-			fieldPtr := unsafe.Pointer(field.UnsafeAddr())
-			newFieldValue := reflect.NewAt(field.Type(), fieldPtr).Elem()
-			val := autotType(qt.Elems[i].Type.Kind(), row[qt.Elems[i].Tag])
+			newFieldValue := reflect.NewAt(qt.Elems[i].Type, unsafe.Pointer(field.UnsafeAddr())).Elem()
+			val := autotType(qt.Elems[i].Type.Kind(), Scans[i].(*any))
 			if val == nil {
 				continue
 			}
@@ -114,24 +182,28 @@ func (qt *MySQL) FindAll(queryString string, queryValue ...any) ([]any, error) {
 
 // SelectOne selects a single record from the database based on the provided query string and values
 func (qt *MySQL) Find(queryString string, queryValue ...any) (any, error) {
-	objs, err := qt.FindAll(queryString, queryValue...)
+	rows, err := qt.conn.Query(qt.getSelectSql(queryString), queryValue...)
+	elemsLen := len(qt.Elems)
 	if err != nil {
 		return nil, err
 	}
-	if len(objs) == 0 {
-		return nil, errors.New("empty result")
+	defer func(rows *sql.Rows) {
+		_ = rows.Close()
+	}(rows)
+	if err != nil {
+		return nil, err
 	}
-	objV := reflect.ValueOf(qt.obj).Elem()
-	newObjV := reflect.New(qt.objType).Elem()
-	newObjV.Set(reflect.ValueOf(objs[0]))
-	for i := 0; i < objV.NumField(); i++ {
-		newVal, val := newObjV.Field(i), objV.Field(i)
-		if !utils.ValIsNil(val) || !newVal.CanAddr() || !val.CanAddr() || utils.ValIsNil(newObjV.Field(i)) {
+	Scans := make([]any, elemsLen)
+	err = rows.Scan(Scans...)
+	if err != nil {
+		return nil, err
+	}
+	for i := 0; i < elemsLen; i++ {
+		val := autotType(qt.Elems[i].Type.Kind(), Scans[i].(*any))
+		if val == nil {
 			continue
 		}
-		newVal = reflect.NewAt(newVal.Type(), unsafe.Pointer(newVal.UnsafeAddr())).Elem()
-		val = reflect.NewAt(val.Type(), unsafe.Pointer(val.UnsafeAddr())).Elem()
-		val.Set(newVal)
+		qt.Elems[i].Set(reflect.ValueOf(utils.AutotAnyI64tAnyI(val)))
 	}
 	return qt.obj, nil
 }
@@ -170,4 +242,49 @@ func IsEmpty(err error) bool {
 		return true
 	}
 	return false
+}
+
+func (qt *MySQL) getSelectSql(queryString string) string {
+	elemsLeng := len(qt.Elems)
+	tabNameLen := len(qt.Table)
+	queryStringLen := len(queryString)
+	elemsNameLength := 0
+	for i := 0; i < elemsLeng; i++ {
+		elemsNameLength += len(qt.Elems[i].Tag) + 2
+		if i != elemsLeng-1 {
+			elemsNameLength += 1
+		}
+	}
+	var tmp []byte
+	if queryString == "" {
+		tmp = make([]byte, 13+tabNameLen+elemsNameLength)
+	} else {
+		tmp = make([]byte, 20+tabNameLen+queryStringLen+elemsNameLength)
+	}
+	copy(tmp[:6], "SELECT ")
+	count := 6
+	for i := 0; i < elemsLeng; i++ {
+		tmp[count] = '`'
+		count++
+		copy(tmp[count:count+len(qt.Elems[i].Tag)], qt.Elems[i].Tag)
+		count += len(qt.Elems[i].Tag)
+		tmp[count] = '`'
+		count++
+		if i != elemsLeng-1 {
+			tmp[count] = ','
+			count++
+		}
+	}
+	copy(tmp[count:count+7], " FROM `")
+	count += 7
+	copy(tmp[count:count+tabNameLen], qt.Table)
+	count += tabNameLen
+	tmp[count] = '`'
+	count++
+	if queryString != "" {
+		copy(tmp[count:count+20], "` WHERE ")
+		count += 20
+		copy(tmp[count:count+queryStringLen], queryString)
+	}
+	return utils.Bytes2String(tmp)
 }

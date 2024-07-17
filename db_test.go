@@ -9,10 +9,12 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
+//go test -benchmem -bench=^Benchmark -cpuprofile=cpu.pprof -memprofile=mem.pprof
+
 func TestMysql(t *testing.T) {
 	opao.NewDatabase("mysql", "root:123456@tcp(127.0.0.1:3306)/test?charset=utf8mb4&parseTime=True&loc=Local")
 }
-
+/*
 func BenchmarkRegObj(t *testing.B) {
 	// 测试Obj注册
 	type TestObj struct {
@@ -40,5 +42,21 @@ func BenchmarkLoadObj(t *testing.B) {
 	orm.Register("test", &TestObj{})
 	for i := 0; i < t.N; i++ {
 		orm.Load("test")
+	}
+}*/
+
+func BenchmarkUpdate(t *testing.B) {
+	type TestObj struct {
+		Id      int    `db:"id"`
+		Name    string `db:"name"`
+		UserAge int    `db:"user_age"`
+		my      int    `db:"my"`
+	}
+	orm := &support.ORM{}
+	orm.Init(nil, mysql.NewMySQL)
+	orm.Register("test", &TestObj{})
+	obj := orm.Load(&TestObj{})
+	for i := 0; i < t.N; i++ {
+		obj.Create()
 	}
 }

@@ -11,6 +11,10 @@ import (
 	"github.com/OblivionOcean/opao/support/sqlite"
 )
 
+const (
+    EmptyQ = ""
+)
+
 type Database struct {
 	Conn          *sql.DB
 	sqlDriverName string

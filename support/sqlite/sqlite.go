@@ -30,6 +30,7 @@ func (qt *Sqlite) Error() error {
 	return qt.err
 }
 
+
 // Update updates the database record based on the provided query string and values
 func (qt *Sqlite) Update(queryString string, queryValue ...any) error {
 	// Fetch tag and corresponding stored data
@@ -73,8 +74,7 @@ func (qt *Sqlite) Update(queryString string, queryValue ...any) error {
 		copy(values[elemsLeng:], queryValue)
 
 	}
-	//_, err := qt.conn.Exec("DELETE FROM \""+qt.Table+"\" WHERE "+queryString, queryValue...)
-	var err error
+	_, err := qt.conn.Exec(utils.Bytes2String(tmp), queryValue...)
 	return err
 }
 
@@ -82,7 +82,6 @@ func (qt *Sqlite) Update(queryString string, queryValue ...any) error {
 func (qt *Sqlite) Delete(queryString string, queryValue ...any) error {
 	tabNameLen := len(qt.Table)
 	queryStringLen := len(queryString)
-	var err error
 	var tmp []byte
 	if queryString == "" {
 		tmp = make([]byte, 14+tabNameLen)
@@ -96,7 +95,7 @@ func (qt *Sqlite) Delete(queryString string, queryValue ...any) error {
 		copy(tmp[14+tabNameLen:20+tabNameLen], " WHERE ")
 		copy(tmp[20+tabNameLen:], queryString)
 	}
-	//_, err := qt.conn.Exec("DELETE FROM \""+qt.Table+"\" WHERE "+queryString, queryValue...)
+	_, err := qt.conn.Exec(utils.Bytes2String(tmp), queryValue...)
 	return err
 }
 
@@ -141,9 +140,7 @@ func (qt *Sqlite) Create() error {
 		}
 	}
 	copy(tmp[count:count+2], ");")
-	utils.Used(tmp)
-	//fmt.Println(utils.Bytes2String(tmp))
-	var err error
+	_, err := qt.conn.Exec(utils.Bytes2String(tmp), values...)
 	return err
 }
 
@@ -257,9 +254,9 @@ func (qt *Sqlite) getSelectSql(queryString string) string {
 	}
 	var tmp []byte
 	if queryString == "" {
-		tmp = make([]byte, 13+tabNameLen+elemsNameLength)
+		tmp = make([]byte, 15+tabNameLen+elemsNameLength)
 	} else {
-		tmp = make([]byte, 20+tabNameLen+queryStringLen+elemsNameLength)
+		tmp = make([]byte, 22+tabNameLen+queryStringLen+elemsNameLength)
 	}
 	copy(tmp[:6], "SELECT ")
 	count := 6

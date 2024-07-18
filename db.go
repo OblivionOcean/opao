@@ -2,25 +2,58 @@ package opao
 
 import (
 	"database/sql"
-	_ "github.com/go-sql-driver/mysql" // MySQL database driver
-	//_ "github.com/lib/pq"			// PostgreSQL database driver
-	//_ "github.com/mattn/go-sqlite3"  // SQLite3 database driver
+	"errors"
 	"reflect"
-	"sync"
+
+	"github.com/OblivionOcean/opao/support"
+	"github.com/OblivionOcean/opao/support/mysql"
+	"github.com/OblivionOcean/opao/support/pg"
+	"github.com/OblivionOcean/opao/support/sqlite"
 )
 
-// Database ORM Object
+const (
+    EmptyQ = ""
+)
+
 type Database struct {
-	Db     *sql.DB                 // Database connection object
-	Caches map[reflect.Type]*Cache // Mapping of object types to caches
-	RWLock sync.RWMutex            // Read-write lock
+	Conn          *sql.DB
+	sqlDriverName string
+	support.ORM
 }
 
-// NewDatabase creates and initializes a new Database instance
-func NewDatabase(driverName, dataSourceName string) (*Database, error) {
-	var Db, err = sql.Open(driverName, dataSourceName)
+func NewDatabase(sqlDriverName, linkInfo string) (*Database, error) {
+	conn, err := sql.Open(sqlDriverName, linkInfo)
 	if err != nil {
 		return nil, err
 	}
-	return &Database{Db: Db, Caches: map[reflect.Type]*Cache{}}, nil
+	db := &Database{Conn: conn}
+	db.sqlDriverName = sqlDriverName
+	db.ORM = support.ORM{}
+	var driver func(*sql.DB, any, reflect.Type, string, []support.Elem, error) support.ObjectORM
+
+	switch db.sqlDriverName {
+	case "mysql":
+		driver = mysql.NewMySQL
+	case "postgres", "pg", "pgsql":
+		driver = pg.NewPg
+	case "sqlite3", "sqlite":
+		driver = sqlite.NewSqlite
+	default:
+		return nil, errors.New("driver not supported")
+	}
+
+	db.ORM.Init(db.Conn, driver)
+
+	return db, nil
+}
+
+func (db *Database) Close() error {
+	if db.Conn == nil {
+		return errors.New("database is not initialized")
+	}
+	return db.Conn.Close()
+}
+
+func (db *Database) GetConn() *sql.DB {
+	return db.Conn
 }

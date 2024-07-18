@@ -11,33 +11,23 @@ import (
 	"unsafe"
 )
 
+// go:inline
 func String2Slice(s string) (b []byte) {
-	type StringHeader struct {
-		Data uintptr
-		Len  int
-	}
-	type SliceHeader struct {
-		Data uintptr
-		Len  int
-		Cap  int
-	}
-	bh := (*SliceHeader)(unsafe.Pointer(&b))
-	sh := (*StringHeader)(unsafe.Pointer(&s))
-	bh.Data = sh.Data
-	bh.Len = sh.Len
-	bh.Cap = sh.Len
-	return
+	return unsafe.Slice(unsafe.StringData(s), len(s))
 }
 
+// go:inline
 func Bytes2String(b []byte) string {
-	return *(*string)(unsafe.Pointer(&b))
-}
+	return unsafe.String(&b[0], len(b))
+}	
 
+// go:inline
 func Byte2String(b byte) string {
-	bs := []byte{b}
-	return *(*string)(unsafe.Pointer(&bs))
+	return unsafe.String(&b, 1)
 }
 
+
+// go:inline
 func BytesCombine2(pBytes ...[]byte) []byte {
 	return bytes.Join(pBytes, String2Slice(""))
 }
@@ -50,18 +40,6 @@ func ContainsInSlice(items []string, item string) bool {
 		}
 	}
 	return false
-}
-
-type Error struct {
-	err string
-}
-
-func (err *Error) Error() string {
-	return err.err
-}
-
-func NewError(e string) *Error {
-	return &Error{err: e}
 }
 
 func Strings2Ints(strs []string) []int {
@@ -131,7 +109,7 @@ func ToString(src any) string {
 		}
 	case reflect.Value:
 		src = s.Interface()
-		return toString(src)
+		return ToString(src)
 	case time.Time:
 		return s.Format(time.RFC3339Nano)
 	case fmt.Stringer:
@@ -141,7 +119,7 @@ func ToString(src any) string {
 		if e != nil {
 			panic(e)
 		} else {
-			return toString(byt)
+			return ToString(byt)
 		}
 	case []byte:
 		byts := s
@@ -150,7 +128,7 @@ func ToString(src any) string {
 		str := ""
 		ls := s
 		for k := 0; k < len(ls); k++ {
-			str += ", " + toString(ls[k])
+			str += ", " + ToString(ls[k])
 		}
 		if len(str) > 2 {
 			return str[2:]
@@ -159,16 +137,16 @@ func ToString(src any) string {
 	case any, *any:
 		sv := reflect.ValueOf(src)
 		if sv.Kind() == reflect.Ptr {
-			return toString(sv.Elem().Interface())
+			return ToString(sv.Elem().Interface())
 		} else if sv.Kind() == reflect.Slice {
-			return toString(src.([]byte))
+			return ToString(src.([]byte))
 		} else if sv.Kind() == reflect.Map {
 			mapKeys := sv.MapKeys()
 			mapKeysLength := len(mapKeys)
-			tmp:= "{"
-			for i:=0;i<mapKeysLength;i++ {
-				key := toString(mapKeys[i])
-			    tmp += key + ": " +  toString(sv.MapIndex(mapKeys[i]).Interface()) + ", "
+			tmp := "{"
+			for i := 0; i < mapKeysLength; i++ {
+				key := ToString(mapKeys[i])
+				tmp += key + ": " + ToString(sv.MapIndex(mapKeys[i]).Interface()) + ", "
 			}
 			return tmp + "}"
 		} else {
@@ -179,9 +157,6 @@ func ToString(src any) string {
 }
 
 func ToBytes(src any) []byte {
-	if src == nil {
-		return nil
-	}
 	switch s := src.(type) {
 	case nil:
 		return nil
@@ -312,4 +287,18 @@ func ValIsNil(val reflect.Value) bool {
 		return true
 	}
 	return false
+}
+
+func Used(...any) {}
+
+func GetSlicesSize(slice [][]byte) int {
+	sliceLength := len(slice)
+	size := 0
+	if sliceLength == 0 {
+	    return 0
+	}
+    for i := 0; i < sliceLength; i++ {
+        size += len(slice[i])
+    }
+	return size
 }

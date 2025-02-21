@@ -275,11 +275,9 @@ func (qt *Pg) getSelectSql(queryString string) string {
 	count += 7
 	copy(tmp[count:count+tabNameLen], qt.Table)
 	count += tabNameLen
-	tmp[count] = '"'
-	count++
 	if queryString != "" {
-		copy(tmp[count:count+20], "\" WHERE ")
-		count += 20
+		copy(tmp[count:count+8], "\" WHERE ")
+		count += 8
 		copy(tmp[count:count+queryStringLen], queryString)
 	}
 	return utils.Bytes2String(tmp)

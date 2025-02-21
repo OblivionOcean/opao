@@ -276,11 +276,9 @@ func (qt *Sqlite) getSelectSql(queryString string) string {
 	count += 7
 	copy(tmp[count:count+tabNameLen], qt.Table)
 	count += tabNameLen
-	tmp[count] = '"'
-	count++
 	if queryString != "" {
 		copy(tmp[count:count+20], "\" WHERE ")
-		count += 20
+		count += 8
 		copy(tmp[count:count+queryStringLen], queryString)
 	}
 	return utils.Bytes2String(tmp)

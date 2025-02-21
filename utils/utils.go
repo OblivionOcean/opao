@@ -42,6 +42,7 @@ func ContainsInSlice(items []string, item string) bool {
 	return false
 }
 
+// gp:inline
 func Strings2Ints(strs []string) []int {
 	ints := []int{}
 	for i := 0; i < len(strs); i++ {

@@ -166,7 +166,7 @@ func (o *ORM) Register(tableName string, object any) error {
 	elems := make([]Elem, numIndex)
 	field := &reflect.StructField{}
 	for i := 0; i < numIndex; i++ {
-		runtime.GetFieldAndReused(field, objTypePtr, i)
+		runtime.GetField(field, objTypePtr, i)
 		tagName, ok := runtime.GetTag(field.Tag, "db")
 		if !ok {
 			continue
@@ -213,12 +213,14 @@ type SafeCache struct {
 	cache map[reflect.Type]Cache
 }
 
+//go:inline
 func NewSafeCache() *SafeCache {
 	return &SafeCache{
 		cache: make(map[reflect.Type]Cache),
 	}
 }
 
+//go:inline
 func (sc *SafeCache) Load(key reflect.Type) (value Cache, ok bool) {
 	sc.mu.RLock()
 	defer sc.mu.RUnlock()
@@ -226,6 +228,7 @@ func (sc *SafeCache) Load(key reflect.Type) (value Cache, ok bool) {
 	return
 }
 
+// go::inline
 func (sc *SafeCache) Store(key reflect.Type, value Cache) {
 	sc.mu.Lock()
 	defer sc.mu.Unlock()

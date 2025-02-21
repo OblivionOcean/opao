@@ -14,7 +14,8 @@ func BenchmarkType(b *testing.B) {
 		Name: "test",
 	}
 	for i := 0; i < b.N; i++ {
-		sf := runtime.GetField(runtime.Type2StructType(reflect.TypeOf(test)), 0)
+		sf := &reflect.StructField{}
+		runtime.GetField(sf, runtime.Type2StructType(reflect.TypeOf(test)), 0)
 		//b.Log(sf)
 		Used(sf)
 	}

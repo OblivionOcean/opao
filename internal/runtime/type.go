@@ -22,12 +22,9 @@ type structField struct {
 }
 
 // GetField 获取反射类型的结构体字段
-func GetField(st *structType, i int) (sf reflect.StructField) {
-	GetFieldAndReused(&sf, st, i)
-	return sf
-}
-
-func GetFieldAndReused(sf *reflect.StructField, st *structType, i int) bool {
+//
+//go:inline
+func GetField(sf *reflect.StructField, st *structType, i int) bool {
 	if st == nil || i < 0 || i >= len(st.Fields) {
 		return false
 	}
@@ -50,10 +47,13 @@ func GetFieldAndReused(sf *reflect.StructField, st *structType, i int) bool {
 func toType(t *rtype) reflect.Type
 
 // RType2Type 将 *rtype 转换为 reflect.Type
+//
+//go:inline
 func RType2Type(t *rtype) reflect.Type {
 	return toType(t)
 }
 
+//go:inline
 func TypeFieldLen(st *structType) int {
 	return len(st.Fields)
 }
@@ -119,7 +119,7 @@ func GetTag(tag reflect.StructTag, key string) (value string, ok bool) {
 				}
 				return value, true
 			}
-			return qvalue[1:len(qvalue)-1], true
+			return qvalue[1 : len(qvalue)-1], true
 		}
 	}
 	return "", false

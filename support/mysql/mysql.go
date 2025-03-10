@@ -45,35 +45,35 @@ func (qt *MySQL) Update(queryString string, queryValue ...any) error {
 	}
 	var tmp []byte
 	if queryString == "" {
-		tmp = make([]byte, 15+tabNameLen+elemsNameLength)
+		tmp = make([]byte, 0, 15+tabNameLen+elemsNameLength)
 	} else {
-		tmp = make([]byte, 21+tabNameLen+queryStringLen+elemsNameLength)
+		tmp = make([]byte, 0, 21+tabNameLen+queryStringLen+elemsNameLength)
 	}
-	copy(tmp[:8], "UPDATE `")
-	copy(tmp[8:8+tabNameLen], qt.Table)
-	copy(tmp[8+tabNameLen:15+tabNameLen], "` SET ")
-	count := 15 + tabNameLen
+	tmp = append(tmp, "UPDATE `"...)
+	tmp = append(tmp, qt.Table...)
+	tmp = append(tmp, "` SET "...)
+
 	values := make([]any, elemsLeng+len(queryValue))
 	for i := 0; i < elemsLeng; i++ {
-		tmp[count] = '`'
-		count++
-		copy(tmp[count:count+len(qt.Elems[i].Tag)], qt.Elems[i].Tag)
-		count += len(qt.Elems[i].Tag)
-		copy(tmp[count:count+3], "`=?")
-		count += 3
+		tmp = append(tmp, '`')
+
+		tmp = append(tmp, qt.Elems[i].Tag...)
+
+		tmp = append(tmp, "`=?"...)
+
 		if i != elemsLeng-1 {
-			tmp[count] = ','
-			count++
+			tmp = append(tmp, ',')
+
 		}
 		values[i] = qt.Elems[i].Get()
 	}
 	if queryString != "" {
-		copy(tmp[count:count+6], " WHERE ")
-		copy(tmp[count+6:], queryString)
+		tmp = append(tmp, " WHERE "...)
+		tmp = append(tmp, queryString...)
 		copy(values[elemsLeng:], queryValue)
 
 	}
-	_, err := qt.conn.Exec(utils.Bytes2String(tmp), queryValue...)
+	_, err := qt.conn.Exec(utils.Bytes2String(tmp), values...)
 	return err
 }
 
@@ -83,16 +83,16 @@ func (qt *MySQL) Delete(queryString string, queryValue ...any) error {
 	queryStringLen := len(queryString)
 	var tmp []byte
 	if queryString == "" {
-		tmp = make([]byte, 14+tabNameLen)
+		tmp = make([]byte, 0, 14+tabNameLen)
 	} else {
-		tmp = make([]byte, 20+tabNameLen+queryStringLen)
+		tmp = make([]byte, 0, 20+tabNameLen+queryStringLen)
 	}
-	copy(tmp[:13], "DELETE FROM `")
-	copy(tmp[13:13+tabNameLen], qt.Table)
+	tmp = append(tmp, "DELETE FROM `"...)
+	tmp = append(tmp, qt.Table...)
 	tmp[13+tabNameLen] = '`'
 	if queryString != "" {
-		copy(tmp[14+tabNameLen:20+tabNameLen], " WHERE ")
-		copy(tmp[20+tabNameLen:], queryString)
+		tmp = append(tmp, " WHERE "...)
+		tmp = append(tmp, queryString...)
 	}
 	_, err := qt.conn.Exec(utils.Bytes2String(tmp), queryValue...)
 	return err
@@ -109,36 +109,36 @@ func (qt *MySQL) Create() error {
 			elemsNameLength += 2
 		}
 	}
-	tmp := make([]byte, 29+tabNameLen+elemsNameLength)
-	copy(tmp[:13], "INSERT INTO `")
-	copy(tmp[13:13+tabNameLen], qt.Table)
-	copy(tmp[13+tabNameLen:16+tabNameLen], "` (")
-	count := 16 + tabNameLen
+	tmp := make([]byte, 0, 29+tabNameLen+elemsNameLength)
+	tmp = append(tmp, "INSERT INTO `"...)
+	tmp = append(tmp, qt.Table...)
+	tmp = append(tmp, "` ("...)
+
 	values := make([]any, elemsLeng)
 	for i := 0; i < elemsLeng; i++ {
-		tmp[count] = '`'
-		count++
-		copy(tmp[count:count+len(qt.Elems[i].Tag)], qt.Elems[i].Tag)
-		count += len(qt.Elems[i].Tag)
-		tmp[count] = '`'
-		count++
+		tmp = append(tmp, '`')
+
+		tmp = append(tmp, qt.Elems[i].Tag...)
+
+		tmp = append(tmp, '`')
+
 		values[i] = qt.Elems[i].Get()
 		if i != elemsLeng-1 {
-			tmp[count] = ','
-			count++
+			tmp = append(tmp, ',')
+
 		}
 	}
-	copy(tmp[count:count+10], ") VALUES (")
-	count += 10
+	tmp = append(tmp, ") VALUES ("...)
+
 	for i := 0; i < elemsLeng; i++ {
-		tmp[count] = '?'
-		count++
+		tmp = append(tmp, '?')
+
 		if i != elemsLeng-1 {
-			tmp[count] = ','
-			count++
+			tmp = append(tmp, ',')
+
 		}
 	}
-	copy(tmp[count:count+2], ");")
+	tmp = append(tmp, ");"...)
 	_, err := qt.conn.Exec(utils.Bytes2String(tmp), values...)
 	return err
 }
@@ -186,9 +186,6 @@ func (qt *MySQL) Find(queryString string, queryValue ...any) (any, error) {
 	defer func(rows *sql.Rows) {
 		_ = rows.Close()
 	}(rows)
-	if err != nil {
-		return nil, err
-	}
 	Scans := make([]any, elemsLen)
 	err = rows.Scan(Scans...)
 	if err != nil {
@@ -253,32 +250,30 @@ func (qt *MySQL) getSelectSql(queryString string) string {
 	}
 	var tmp []byte
 	if queryString == "" {
-		tmp = make([]byte, 15+tabNameLen+elemsNameLength)
+		tmp = make([]byte, 0, 15+tabNameLen+elemsNameLength)
 	} else {
-		tmp = make([]byte, 22+tabNameLen+queryStringLen+elemsNameLength)
+		tmp = make([]byte, 0, 22+tabNameLen+queryStringLen+elemsNameLength)
 	}
-	copy(tmp[:6], "SELECT ")
-	count := 6
+	tmp = append(tmp, "SELECT "...)
 	for i := 0; i < elemsLeng; i++ {
-		tmp[count] = '`'
-		count++
-		copy(tmp[count:count+len(qt.Elems[i].Tag)], qt.Elems[i].Tag)
-		count += len(qt.Elems[i].Tag)
-		tmp[count] = '`'
-		count++
+		tmp = append(tmp, '`')
+
+		tmp = append(tmp, qt.Elems[i].Tag...)
+
+		tmp = append(tmp, '`')
+
 		if i != elemsLeng-1 {
-			tmp[count] = ','
-			count++
+			tmp = append(tmp, ',')
+
 		}
 	}
-	copy(tmp[count:count+7], " FROM `")
-	count += 7
-	copy(tmp[count:count+tabNameLen], qt.Table)
-	count += tabNameLen
+	tmp = append(tmp, " FROM `"...)
+
+	tmp = append(tmp, qt.Table...)
 	if queryString != "" {
-		copy(tmp[count:count+8], "` WHERE ")
-		count += 8
-		copy(tmp[count:count+queryStringLen], queryString)
+		tmp = append(tmp, "` WHERE "...)
+
+		tmp = append(tmp, queryString...)
 	}
 	return utils.Bytes2String(tmp)
 }

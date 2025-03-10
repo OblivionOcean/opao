@@ -3,14 +3,16 @@ package pg
 import (
 	"database/sql"
 	"database/sql/driver"
+	"fmt"
 	"reflect"
+	"strings"
 	"unsafe"
 
 	"github.com/OblivionOcean/opao/support"
 	"github.com/OblivionOcean/opao/utils"
 )
 
-type Pg struct {
+type PgSQL struct {
 	Table   string
 	err     error
 	Elems   []support.Elem
@@ -21,17 +23,17 @@ type Pg struct {
 
 func NewPg(conn *sql.DB, obj any, objType reflect.Type, table string, Elems []support.Elem, err error) support.ObjectORM {
 	if err != nil {
-		return &Pg{err: err}
+		return &PgSQL{err: err}
 	}
-	return &Pg{Table: table, Elems: Elems, err: err, conn: conn, obj: obj, objType: objType}
+	return &PgSQL{Table: table, Elems: Elems, err: err, conn: conn, obj: obj, objType: objType}
 }
 
-func (qt *Pg) Error() error {
+func (qt *PgSQL) Error() error {
 	return qt.err
 }
 
 // Update updates the database record based on the provided query string and values
-func (qt *Pg) Update(queryString string, queryValue ...any) error {
+func (qt *PgSQL) Update(queryString string, queryValue ...any) error {
 	// Fetch tag and corresponding stored data
 	elemsLeng := len(qt.Elems)
 	tabNameLen := len(qt.Table)
@@ -45,61 +47,78 @@ func (qt *Pg) Update(queryString string, queryValue ...any) error {
 	}
 	var tmp []byte
 	if queryString == "" {
-		tmp = make([]byte, 15+tabNameLen+elemsNameLength)
+		tmp = make([]byte, 0, 15+tabNameLen+elemsNameLength)
 	} else {
-		tmp = make([]byte, 21+tabNameLen+queryStringLen+elemsNameLength)
+		tmp = make([]byte, 0, 21+tabNameLen+queryStringLen+elemsNameLength)
 	}
-	copy(tmp[:8], "UPDATE \"")
-	copy(tmp[8:8+tabNameLen], qt.Table)
-	copy(tmp[8+tabNameLen:15+tabNameLen], "\" SET ")
-	count := 15 + tabNameLen
+	tmp = append(tmp, "UPDATE \""...)
+	tmp = append(tmp, qt.Table...)
+	tmp = append(tmp, "\" SET "...)
+
 	values := make([]any, elemsLeng+len(queryValue))
 	for i := 0; i < elemsLeng; i++ {
-		tmp[count] = '"'
-		count++
-		copy(tmp[count:count+len(qt.Elems[i].Tag)], qt.Elems[i].Tag)
-		count += len(qt.Elems[i].Tag)
-		copy(tmp[count:count+3], "\"=?")
-		count += 3
+		tmp = append(tmp, '"')
+		tmp = append(tmp, qt.Elems[i].Tag...)
+		tmp = append(tmp, fmt.Sprintf("\"=$%d", i+1)...) // 改为 pgsql 的 $n 占位符
 		if i != elemsLeng-1 {
-			tmp[count] = ','
-			count++
+			tmp = append(tmp, ',')
 		}
 		values[i] = qt.Elems[i].Get()
 	}
 	if queryString != "" {
-		copy(tmp[count:count+6], " WHERE ")
-		copy(tmp[count+6:], queryString)
+		tmp = append(tmp, " WHERE "...)
+		// 替换问号为 pgsql 占位符格式
+		whereCounter := elemsLeng + 1
+		var processedQuery strings.Builder
+		for _, c := range queryString {
+			if c == '?' {
+				processedQuery.WriteString(fmt.Sprintf("$%d", whereCounter))
+				whereCounter++
+			} else {
+				processedQuery.WriteRune(c)
+			}
+		}
+		tmp = append(tmp, processedQuery.String()...)
 		copy(values[elemsLeng:], queryValue)
-
 	}
-	_, err := qt.conn.Exec(utils.Bytes2String(tmp), queryValue...)
+	_, err := qt.conn.Exec(utils.Bytes2String(tmp), values...)
 	return err
 }
 
 // Delete deletes database records based on the provided query string and values
-func (qt *Pg) Delete(queryString string, queryValue ...any) error {
+func (qt *PgSQL) Delete(queryString string, queryValue ...any) error {
 	tabNameLen := len(qt.Table)
 	queryStringLen := len(queryString)
 	var tmp []byte
 	if queryString == "" {
-		tmp = make([]byte, 14+tabNameLen)
+		tmp = make([]byte, 0, 14+tabNameLen)
 	} else {
-		tmp = make([]byte, 20+tabNameLen+queryStringLen)
+		tmp = make([]byte, 0, 20+tabNameLen+queryStringLen)
 	}
-	copy(tmp[:13], "DELETE FROM \"")
-	copy(tmp[13:13+tabNameLen], qt.Table)
+	tmp = append(tmp, "DELETE FROM \""...)
+	tmp = append(tmp, qt.Table...)
 	tmp[13+tabNameLen] = '"'
 	if queryString != "" {
-		copy(tmp[14+tabNameLen:20+tabNameLen], " WHERE ")
-		copy(tmp[20+tabNameLen:], queryString)
+		tmp = append(tmp, " WHERE "...)
+		// 处理 WHERE 子句中的占位符
+		whereCounter := 1
+		var processedQuery strings.Builder
+		for _, c := range queryString {
+			if c == '?' {
+				processedQuery.WriteString(fmt.Sprintf("$%d", whereCounter))
+				whereCounter++
+			} else {
+				processedQuery.WriteRune(c)
+			}
+		}
+		tmp = append(tmp, processedQuery.String()...)
 	}
 	_, err := qt.conn.Exec(utils.Bytes2String(tmp), queryValue...)
 	return err
 }
 
 // Insert inserts data into the database using INSERT operation
-func (qt *Pg) Create() error {
+func (qt *PgSQL) Create() error {
 	elemsLeng := len(qt.Elems)
 	tabNameLen := len(qt.Table)
 	elemsNameLength := 0
@@ -109,42 +128,36 @@ func (qt *Pg) Create() error {
 			elemsNameLength += 2
 		}
 	}
-	tmp := make([]byte, 29+tabNameLen+elemsNameLength)
-	copy(tmp[:13], "INSERT INTO \"")
-	copy(tmp[13:13+tabNameLen], qt.Table)
-	copy(tmp[13+tabNameLen:16+tabNameLen], "\" (")
-	count := 16 + tabNameLen
+	tmp := make([]byte, 0, 29+tabNameLen+elemsNameLength)
+	tmp = append(tmp, "INSERT INTO \""...)
+	tmp = append(tmp, qt.Table...)
+	tmp = append(tmp, "\" ("...)
+
 	values := make([]any, elemsLeng)
 	for i := 0; i < elemsLeng; i++ {
-		tmp[count] = '"'
-		count++
-		copy(tmp[count:count+len(qt.Elems[i].Tag)], qt.Elems[i].Tag)
-		count += len(qt.Elems[i].Tag)
-		tmp[count] = '"'
-		count++
+		tmp = append(tmp, '"')
+		tmp = append(tmp, qt.Elems[i].Tag...)
+		tmp = append(tmp, '"')
 		values[i] = qt.Elems[i].Get()
 		if i != elemsLeng-1 {
-			tmp[count] = ','
-			count++
+			tmp = append(tmp, ',')
 		}
 	}
-	copy(tmp[count:count+10], ") VALUES (")
-	count += 10
+	tmp = append(tmp, ") VALUES ("...)
+	// 修改 VALUES 占位符为 $n 格式
 	for i := 0; i < elemsLeng; i++ {
-		tmp[count] = '?'
-		count++
+		tmp = append(tmp, fmt.Sprintf("$%d", i+1)...)
 		if i != elemsLeng-1 {
-			tmp[count] = ','
-			count++
+			tmp = append(tmp, ',')
 		}
 	}
-	copy(tmp[count:count+2], ");")
+	tmp = append(tmp, ");"...)
 	_, err := qt.conn.Exec(utils.Bytes2String(tmp), values...)
 	return err
 }
 
 // Select retrieves data from the database based on the provided query string and values
-func (qt *Pg) FindAll(queryString string, queryValue ...any) ([]any, error) {
+func (qt *PgSQL) FindAll(queryString string, queryValue ...any) ([]any, error) {
 	// Retrieve objtype type through reflection, then query the data and convert it to the type of objType
 	rows, err := qt.conn.Query(qt.getSelectSql(queryString), queryValue...)
 	elemsLen := len(qt.Elems)
@@ -177,7 +190,7 @@ func (qt *Pg) FindAll(queryString string, queryValue ...any) ([]any, error) {
 }
 
 // SelectOne selects a single record from the database based on the provided query string and values
-func (qt *Pg) Find(queryString string, queryValue ...any) (any, error) {
+func (qt *PgSQL) Find(queryString string, queryValue ...any) (any, error) {
 	rows, err := qt.conn.Query(qt.getSelectSql(queryString), queryValue...)
 	elemsLen := len(qt.Elems)
 	if err != nil {
@@ -186,9 +199,6 @@ func (qt *Pg) Find(queryString string, queryValue ...any) (any, error) {
 	defer func(rows *sql.Rows) {
 		_ = rows.Close()
 	}(rows)
-	if err != nil {
-		return nil, err
-	}
 	Scans := make([]any, elemsLen)
 	err = rows.Scan(Scans...)
 	if err != nil {
@@ -239,8 +249,7 @@ func IsEmpty(err error) bool {
 	}
 	return false
 }
-
-func (qt *Pg) getSelectSql(queryString string) string {
+func (qt *PgSQL) getSelectSql(queryString string) string {
 	elemsLeng := len(qt.Elems)
 	tabNameLen := len(qt.Table)
 	queryStringLen := len(queryString)
@@ -253,32 +262,36 @@ func (qt *Pg) getSelectSql(queryString string) string {
 	}
 	var tmp []byte
 	if queryString == "" {
-		tmp = make([]byte, 15+tabNameLen+elemsNameLength)
+		tmp = make([]byte, 0, 15+tabNameLen+elemsNameLength)
 	} else {
-		tmp = make([]byte, 22+tabNameLen+queryStringLen+elemsNameLength)
+		tmp = make([]byte, 0, 22+tabNameLen+queryStringLen+elemsNameLength)
 	}
-	copy(tmp[:6], "SELECT ")
-	count := 6
+	tmp = append(tmp, "SELECT "...)
+
 	for i := 0; i < elemsLeng; i++ {
-		tmp[count] = '"'
-		count++
-		copy(tmp[count:count+len(qt.Elems[i].Tag)], qt.Elems[i].Tag)
-		count += len(qt.Elems[i].Tag)
-		tmp[count] = '"'
-		count++
+		tmp = append(tmp, '"')
+		tmp = append(tmp, qt.Elems[i].Tag...)
+		tmp = append(tmp, '"')
 		if i != elemsLeng-1 {
-			tmp[count] = ','
-			count++
+			tmp = append(tmp, ',')
 		}
 	}
-	copy(tmp[count:count+7], " FROM \"")
-	count += 7
-	copy(tmp[count:count+tabNameLen], qt.Table)
-	count += tabNameLen
+	tmp = append(tmp, " FROM \""...)
+	tmp = append(tmp, qt.Table...)
 	if queryString != "" {
-		copy(tmp[count:count+8], "\" WHERE ")
-		count += 8
-		copy(tmp[count:count+queryStringLen], queryString)
+		tmp = append(tmp, "\" WHERE "...)
+		// 处理 WHERE 子句中的占位符
+		whereCounter := 1
+		var processedQuery strings.Builder
+		for _, c := range queryString {
+			if c == '?' {
+				processedQuery.WriteString(fmt.Sprintf("$%d", whereCounter))
+				whereCounter++
+			} else {
+				processedQuery.WriteRune(c)
+			}
+		}
+		tmp = append(tmp, processedQuery.String()...)
 	}
 	return utils.Bytes2String(tmp)
 }

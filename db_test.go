@@ -18,7 +18,7 @@ func TestMysql(t *testing.T) {
 func BenchmarkRegObj(t *testing.B) {
 	// 测试Obj注册
 	type TestObj struct {
-		Id      int    `db:"id`
+		Id      int    `db:"id"`
 		Name    string `db:"name"`
 		UserAge int    `db:"user_age"`
 		my      int    `db:"my"`
@@ -32,7 +32,7 @@ func BenchmarkRegObj(t *testing.B) {
 
 func BenchmarkLoadObj(t *testing.B) {
 	type TestObj struct {
-		Id      int    `db:"id`
+		Id      int    `db:"id"`
 		Name    string `db:"name"`
 		UserAge int    `db:"user_age"`
 		my      int    `db:"my"`
@@ -41,6 +41,21 @@ func BenchmarkLoadObj(t *testing.B) {
 	orm.Init(nil, mysql.NewMySQL)
 	orm.Register("test", &TestObj{})
 	for i := 0; i < t.N; i++ {
-		orm.Load("test")
+		orm.Load(&TestObj{})
 	}
+}
+
+func TestPgSql(t *testing.T) {
+	type TestObj struct {
+		Id      int    `db:"id"`
+		Name    string `db:"name"`
+		UserAge int    `db:"user_age"`
+		my      int    `db:"my"`
+	}
+	orm := &support.ORM{}
+	orm.Init(nil, mysql.NewMySQL)
+	orm.Register("test", &TestObj{})
+	tmp := orm.Load(&TestObj{})
+	tmp.Update("\"url\" = ?", "")
+
 }

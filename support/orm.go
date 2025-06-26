@@ -19,10 +19,10 @@ type ORM struct {
 type ObjectORM interface {
 	Error() error
 	Create() error
-	Update(queryString string, queryValue ...any) error
-	Delete(queryString string, queryValue ...any) error
-	Find(queryString string, queryValue ...any) (any, error)
-	FindAll(queryString string, queryValue ...any) ([]any, error)
+	Update(args ...any) error
+	Delete(args ...any) error
+	Find(args ...any) (any, error)
+	FindAll(args ...any) ([]any, error)
 }
 
 type Elem struct {
@@ -30,6 +30,7 @@ type Elem struct {
 	Type  reflect.Type
 	Tag   string
 	Value reflect.Value
+	Offset uintptr
 }
 
 type Cache struct {
@@ -64,8 +65,7 @@ func (elem *Elem) Get() any {
 		return *(*uint8)(ptr)
 	case reflect.Int64:
 		return *(*int64)(ptr)
-	case reflect.Int32:
-		return *(*int32)(ptr)
+	case reflect.Int32:	return *(*int32)(ptr)
 	case reflect.Int16:
 		return *(*int16)(ptr)
 	case reflect.Int8:
@@ -168,15 +168,17 @@ func (o *ORM) Register(tableName string, object any) error {
 	for i := 0; i < numIndex; i++ {
 		runtime.GetField(field, objTypePtr, i)
 		tagName, ok := runtime.GetTag(field.Tag, "db")
-		if !ok {
+		if !ok || tagName == "-" || tagName == "" || field.Type.Kind() == reflect.Invalid || field.Type.Kind() == reflect.Func || field.Type.Kind() == reflect.Chan || field.Type.Kind() == reflect.UnsafePointer || field.Type.Kind() == reflect.Map || field.Type.Kind() == reflect.Interface || field.Type.Kind() == reflect.Slice || field.Type.Kind() == reflect.Array || field.Type.Kind() == reflect.Ptr || field.Type.Kind() == reflect.Struct {
+			numIndex--
 			continue
 		}
 		elems[i].Index = i
 		elems[i].Type = field.Type
 		elems[i].Tag = tagName
+		elems[i].Offset = field.Offset
 	}
 	o.caches.Store(objType, Cache{
-		Elems:   elems,
+		Elems:   elems[:numIndex],
 		Table:   tableName,
 		ObjType: objType,
 	})

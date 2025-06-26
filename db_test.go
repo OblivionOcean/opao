@@ -18,7 +18,7 @@ func TestMysql(t *testing.T) {
 func BenchmarkRegObj(t *testing.B) {
 	// 测试Obj注册
 	type TestObj struct {
-		Id      int    `db:"id"`
+		ID      int    `db:"id"`
 		Name    string `db:"name"`
 		UserAge int    `db:"user_age"`
 		my      int    `db:"my"`
@@ -32,7 +32,7 @@ func BenchmarkRegObj(t *testing.B) {
 
 func BenchmarkLoadObj(t *testing.B) {
 	type TestObj struct {
-		Id      int    `db:"id"`
+		ID      int    `db:"id"`
 		Name    string `db:"name"`
 		UserAge int    `db:"user_age"`
 		my      int    `db:"my"`
@@ -47,7 +47,7 @@ func BenchmarkLoadObj(t *testing.B) {
 
 func TestPgSql(t *testing.T) {
 	type TestObj struct {
-		Id      int    `db:"id"`
+		ID      int    `db:"id"`
 		Name    string `db:"name"`
 		UserAge int    `db:"user_age"`
 		my      int    `db:"my"`

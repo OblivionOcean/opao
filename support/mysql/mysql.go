@@ -31,11 +31,12 @@ func (qt *MySQL) Error() error {
 }
 
 // Update updates the database record based on the provided query string and values
-func (qt *MySQL) Update(queryString string, queryValue ...any) error {
+func (qt *MySQL) Update(queryParts ...any) error {
+	query, args := qt.buildQuery(queryParts...)
 	// Fetch tag and corresponding stored data
 	elemsLeng := len(qt.Elems)
 	tabNameLen := len(qt.Table)
-	queryStringLen := len(queryString)
+	queryStringLen := len(query)
 	elemsNameLength := 0
 	for i := 0; i < elemsLeng; i++ {
 		elemsNameLength += len(qt.Elems[i].Tag) + 4
@@ -44,7 +45,7 @@ func (qt *MySQL) Update(queryString string, queryValue ...any) error {
 		}
 	}
 	var tmp []byte
-	if queryString == "" {
+	if query == "" {
 		tmp = make([]byte, 0, 15+tabNameLen+elemsNameLength)
 	} else {
 		tmp = make([]byte, 0, 21+tabNameLen+queryStringLen+elemsNameLength)
@@ -53,7 +54,7 @@ func (qt *MySQL) Update(queryString string, queryValue ...any) error {
 	tmp = append(tmp, qt.Table...)
 	tmp = append(tmp, "` SET "...)
 
-	values := make([]any, elemsLeng+len(queryValue))
+	values := make([]any, elemsLeng+len(args))
 	for i := 0; i < elemsLeng; i++ {
 		tmp = append(tmp, '`')
 
@@ -67,10 +68,10 @@ func (qt *MySQL) Update(queryString string, queryValue ...any) error {
 		}
 		values[i] = qt.Elems[i].Get()
 	}
-	if queryString != "" {
+	if query != "" {
 		tmp = append(tmp, " WHERE "...)
-		tmp = append(tmp, queryString...)
-		copy(values[elemsLeng:], queryValue)
+		tmp = append(tmp, query...)
+		copy(values[elemsLeng:], args)
 
 	}
 	_, err := qt.conn.Exec(utils.Bytes2String(tmp), values...)
@@ -78,11 +79,12 @@ func (qt *MySQL) Update(queryString string, queryValue ...any) error {
 }
 
 // Delete deletes database records based on the provided query string and values
-func (qt *MySQL) Delete(queryString string, queryValue ...any) error {
+func (qt *MySQL) Delete(queryParts ...any) error {
+	query, args := qt.buildQuery(queryParts...)
 	tabNameLen := len(qt.Table)
-	queryStringLen := len(queryString)
+	queryStringLen := len(query)
 	var tmp []byte
-	if queryString == "" {
+	if query == "" {
 		tmp = make([]byte, 0, 14+tabNameLen)
 	} else {
 		tmp = make([]byte, 0, 20+tabNameLen+queryStringLen)
@@ -90,15 +92,15 @@ func (qt *MySQL) Delete(queryString string, queryValue ...any) error {
 	tmp = append(tmp, "DELETE FROM `"...)
 	tmp = append(tmp, qt.Table...)
 	tmp[13+tabNameLen] = '`'
-	if queryString != "" {
+	if query != "" {
 		tmp = append(tmp, " WHERE "...)
-		tmp = append(tmp, queryString...)
+		tmp = append(tmp, query...)
 	}
-	_, err := qt.conn.Exec(utils.Bytes2String(tmp), queryValue...)
+	_, err := qt.conn.Exec(utils.Bytes2String(tmp), args...)
 	return err
 }
 
-// Insert inserts data into the database using INSERT operation
+// Create inserts data into the database using INSERT operation
 func (qt *MySQL) Create() error {
 	elemsLeng := len(qt.Elems)
 	tabNameLen := len(qt.Table)
@@ -143,10 +145,11 @@ func (qt *MySQL) Create() error {
 	return err
 }
 
-// Select retrieves data from the database based on the provided query string and values
-func (qt *MySQL) FindAll(queryString string, queryValue ...any) ([]any, error) {
+// FindAll retrieves data from the database based on the provided query string and values
+func (qt *MySQL) FindAll(queryParts ...any) ([]any, error) {
+	query, args := qt.buildQuery(queryParts...)
 	// Retrieve objtype type through reflection, then query the data and convert it to the type of objType
-	rows, err := qt.conn.Query(qt.getSelectSql(queryString), queryValue...)
+	rows, err := qt.conn.Query(qt.getSelectSQL(query), args...)
 	elemsLen := len(qt.Elems)
 	if err != nil {
 		return nil, err
@@ -176,9 +179,10 @@ func (qt *MySQL) FindAll(queryString string, queryValue ...any) ([]any, error) {
 	return objs, nil
 }
 
-// SelectOne selects a single record from the database based on the provided query string and values
-func (qt *MySQL) Find(queryString string, queryValue ...any) (any, error) {
-	rows, err := qt.conn.Query(qt.getSelectSql(queryString), queryValue...)
+// Find retrieves a single record from the database based on the provided query string and values
+func (qt *MySQL) Find(queryParts ...any) (any, error) {
+	query, args := qt.buildQuery(queryParts...)
+	rows, err := qt.conn.Query(qt.getSelectSQL(query), args...)
 	elemsLen := len(qt.Elems)
 	if err != nil {
 		return nil, err
@@ -237,7 +241,7 @@ func IsEmpty(err error) bool {
 	return false
 }
 
-func (qt *MySQL) getSelectSql(queryString string) string {
+func (qt *MySQL) getSelectSQL(queryString string) string {
 	elemsLeng := len(qt.Elems)
 	tabNameLen := len(qt.Table)
 	queryStringLen := len(queryString)

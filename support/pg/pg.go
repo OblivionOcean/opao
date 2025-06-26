@@ -33,11 +33,18 @@ func (qt *PgSQL) Error() error {
 }
 
 // Update updates the database record based on the provided query string and values
-func (qt *PgSQL) Update(queryString string, queryValue ...any) error {
+func (qt *PgSQL) Update(queryParts ...any) error {
+	query, args := qt.buildQuery(queryParts...)
+	// 修改参数拼接逻辑，将字段值和查询参数合并
+	values := make([]any, len(qt.Elems))
+	for i := 0; i < len(qt.Elems); i++ {
+		values[i] = qt.Elems[i].Get()
+	}
+	values = append(values, args...)
 	// Fetch tag and corresponding stored data
 	elemsLeng := len(qt.Elems)
 	tabNameLen := len(qt.Table)
-	queryStringLen := len(queryString)
+	queryStringLen := len(query)
 	elemsNameLength := 0
 	for i := 0; i < elemsLeng; i++ {
 		elemsNameLength += len(qt.Elems[i].Tag) + 4
@@ -46,7 +53,7 @@ func (qt *PgSQL) Update(queryString string, queryValue ...any) error {
 		}
 	}
 	var tmp []byte
-	if queryString == "" {
+	if query == "" {
 		tmp = make([]byte, 0, 15+tabNameLen+elemsNameLength)
 	} else {
 		tmp = make([]byte, 0, 21+tabNameLen+queryStringLen+elemsNameLength)
@@ -55,22 +62,12 @@ func (qt *PgSQL) Update(queryString string, queryValue ...any) error {
 	tmp = append(tmp, qt.Table...)
 	tmp = append(tmp, "\" SET "...)
 
-	values := make([]any, elemsLeng+len(queryValue))
-	for i := 0; i < elemsLeng; i++ {
-		tmp = append(tmp, '"')
-		tmp = append(tmp, qt.Elems[i].Tag...)
-		tmp = append(tmp, fmt.Sprintf("\"=$%d", i+1)...) // 改为 pgsql 的 $n 占位符
-		if i != elemsLeng-1 {
-			tmp = append(tmp, ',')
-		}
-		values[i] = qt.Elems[i].Get()
-	}
-	if queryString != "" {
+	if query != "" {
 		tmp = append(tmp, " WHERE "...)
 		// 替换问号为 pgsql 占位符格式
 		whereCounter := elemsLeng + 1
 		var processedQuery strings.Builder
-		for _, c := range queryString {
+		for _, c := range query {
 			if c == '?' {
 				processedQuery.WriteString(fmt.Sprintf("$%d", whereCounter))
 				whereCounter++
@@ -79,18 +76,22 @@ func (qt *PgSQL) Update(queryString string, queryValue ...any) error {
 			}
 		}
 		tmp = append(tmp, processedQuery.String()...)
-		copy(values[elemsLeng:], queryValue)
+	}
+	// 修正占位符生成逻辑
+	for i := 0; i < len(qt.Elems); i++ {
+		tmp = append(tmp, fmt.Sprintf("\"=$%d", i+1)...)
 	}
 	_, err := qt.conn.Exec(utils.Bytes2String(tmp), values...)
 	return err
 }
 
 // Delete deletes database records based on the provided query string and values
-func (qt *PgSQL) Delete(queryString string, queryValue ...any) error {
+func (qt *PgSQL) Delete(queryParts ...any) error {
+	query, args := qt.buildQuery(queryParts...)
 	tabNameLen := len(qt.Table)
-	queryStringLen := len(queryString)
+	queryStringLen := len(query)
 	var tmp []byte
-	if queryString == "" {
+	if query == "" {
 		tmp = make([]byte, 0, 14+tabNameLen)
 	} else {
 		tmp = make([]byte, 0, 20+tabNameLen+queryStringLen)
@@ -98,12 +99,12 @@ func (qt *PgSQL) Delete(queryString string, queryValue ...any) error {
 	tmp = append(tmp, "DELETE FROM \""...)
 	tmp = append(tmp, qt.Table...)
 	tmp[13+tabNameLen] = '"'
-	if queryString != "" {
+	if query != "" {
 		tmp = append(tmp, " WHERE "...)
 		// 处理 WHERE 子句中的占位符
 		whereCounter := 1
 		var processedQuery strings.Builder
-		for _, c := range queryString {
+		for _, c := range query {
 			if c == '?' {
 				processedQuery.WriteString(fmt.Sprintf("$%d", whereCounter))
 				whereCounter++
@@ -113,11 +114,11 @@ func (qt *PgSQL) Delete(queryString string, queryValue ...any) error {
 		}
 		tmp = append(tmp, processedQuery.String()...)
 	}
-	_, err := qt.conn.Exec(utils.Bytes2String(tmp), queryValue...)
+	_, err := qt.conn.Exec(utils.Bytes2String(tmp), args...)
 	return err
 }
 
-// Insert inserts data into the database using INSERT operation
+// Create inserts data into the database using INSERT operation
 func (qt *PgSQL) Create() error {
 	elemsLeng := len(qt.Elems)
 	tabNameLen := len(qt.Table)
@@ -156,10 +157,10 @@ func (qt *PgSQL) Create() error {
 	return err
 }
 
-// Select retrieves data from the database based on the provided query string and values
-func (qt *PgSQL) FindAll(queryString string, queryValue ...any) ([]any, error) {
-	// Retrieve objtype type through reflection, then query the data and convert it to the type of objType
-	rows, err := qt.conn.Query(qt.getSelectSql(queryString), queryValue...)
+// FindAll retrieves data from the database based on the provided query string and values
+func (qt *PgSQL) FindAll(queryParts ...any) ([]any, error) {
+	query, args := qt.buildQuery(queryParts...)
+	rows, err := qt.conn.Query(qt.getSelectSQL(query), args...)
 	elemsLen := len(qt.Elems)
 	if err != nil {
 		return nil, err
@@ -189,9 +190,10 @@ func (qt *PgSQL) FindAll(queryString string, queryValue ...any) ([]any, error) {
 	return objs, nil
 }
 
-// SelectOne selects a single record from the database based on the provided query string and values
-func (qt *PgSQL) Find(queryString string, queryValue ...any) (any, error) {
-	rows, err := qt.conn.Query(qt.getSelectSql(queryString), queryValue...)
+
+func (qt *PgSQL) Find(queryParts ...any) (any, error) {
+	query, args := qt.buildQuery(queryParts...)
+	rows, err := qt.conn.Query(qt.getSelectSQL(query), args...)
 	elemsLen := len(qt.Elems)
 	if err != nil {
 		return nil, err
@@ -249,7 +251,7 @@ func IsEmpty(err error) bool {
 	}
 	return false
 }
-func (qt *PgSQL) getSelectSql(queryString string) string {
+func (qt *PgSQL) getSelectSQL(queryString string) string {
 	elemsLeng := len(qt.Elems)
 	tabNameLen := len(qt.Table)
 	queryStringLen := len(queryString)
@@ -280,7 +282,8 @@ func (qt *PgSQL) getSelectSql(queryString string) string {
 	tmp = append(tmp, qt.Table...)
 	if queryString != "" {
 		tmp = append(tmp, "\" WHERE "...)
-		// 处理 WHERE 子句中的占位符
+		
+		// 使用计数器处理占位符
 		whereCounter := 1
 		var processedQuery strings.Builder
 		for _, c := range queryString {

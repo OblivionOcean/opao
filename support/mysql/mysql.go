@@ -75,6 +75,9 @@ func (qt *MySQL) Update(queryParts ...any) error {
 
 	}
 	r, err := qt.conn.Exec(utils.Bytes2String(tmp), values...)
+	if err != nil {
+		return err
+	}
 	support.WriteLii(qt.Elems, r)
 	return err
 }
@@ -143,6 +146,9 @@ func (qt *MySQL) Create() error {
 	}
 	tmp = append(tmp, ");"...)
 	r, err := qt.conn.Exec(utils.Bytes2String(tmp), values...)
+	if err != nil {
+		return err
+	}
 	support.WriteLii(qt.Elems, r)
 	return err
 }

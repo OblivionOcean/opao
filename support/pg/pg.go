@@ -82,6 +82,9 @@ func (qt *PgSQL) Update(queryParts ...any) error {
 		tmp = append(tmp, fmt.Sprintf("\"=$%d", i+1)...)
 	}
 	r, err := qt.conn.Exec(utils.Bytes2String(tmp), values...)
+	if err != nil {
+		return err
+	}
 	support.WriteLii(qt.Elems, r)
 	return err
 }
@@ -155,6 +158,9 @@ func (qt *PgSQL) Create() error {
 	}
 	tmp = append(tmp, ");"...)
 	r, err := qt.conn.Exec(utils.Bytes2String(tmp), values...)
+	if err != nil {
+		return err
+	}
 	support.WriteLii(qt.Elems, r)
 	return err
 }

@@ -318,5 +318,14 @@ func SplitStringByByte(s string, sep byte) []string {
  return result
 }
 
-//go:linkname CountByte bytealg.Count
-func CountByte(s []byte, sep byte) int
+func CountByte(s []byte, sep byte)  int {
+	n := 0
+	for {
+		i := bytes.IndexByte(s, sep)
+		if i == -1 {
+			return n
+		}
+		n++
+		s = s[i+1:]
+	}
+}

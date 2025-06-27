@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
-	"unsafe"
 
 	"github.com/OblivionOcean/opao/support"
 	"github.com/OblivionOcean/opao/utils"
@@ -180,24 +179,17 @@ func (qt *PgSQL) FindAll(queryParts ...any) ([]any, error) {
 	for rows.Next() {
 		obj := reflect.New(qt.objType).Elem()
 		Scans := make([]any, elemsLen)
+		for i := 0; i < elemsLen; i++ {
+			Scans[i] = reflect.NewAt(qt.Elems[i].Type, obj.Index(qt.Elems[i].Index).Addr().UnsafePointer()).Interface()
+		}
 		err := rows.Scan(Scans...)
 		if err != nil {
 			return nil, err
-		}
-		for i := 0; i < elemsLen; i++ {
-			field := obj.Field(qt.Elems[i].Index)
-			newFieldValue := reflect.NewAt(qt.Elems[i].Type, unsafe.Pointer(field.UnsafeAddr())).Elem()
-			val := autotType(qt.Elems[i].Type.Kind(), Scans[i].(*any))
-			if val == nil {
-				continue
-			}
-			newFieldValue.Set(reflect.ValueOf(utils.AutotAnyI64tAnyI(val)))
 		}
 		objs = append(objs, obj.Interface())
 	}
 	return objs, nil
 }
-
 
 func (qt *PgSQL) Find(queryParts ...any) (any, error) {
 	query, args := qt.buildQuery(queryParts...)
@@ -209,17 +201,22 @@ func (qt *PgSQL) Find(queryParts ...any) (any, error) {
 	defer func(rows *sql.Rows) {
 		_ = rows.Close()
 	}(rows)
+	if !rows.Next() {
+		if err = rows.Err(); err != nil {
+			return nil, err
+		}
+		// 如果没有数据，返回空对象
+		if IsEmpty(err) {
+			return nil, nil
+		}
+	}
 	Scans := make([]any, elemsLen)
+	for i := 0; i < elemsLen; i++ {
+		Scans[i] = qt.Elems[i].GetPtr()
+	}
 	err = rows.Scan(Scans...)
 	if err != nil {
 		return nil, err
-	}
-	for i := 0; i < elemsLen; i++ {
-		val := autotType(qt.Elems[i].Type.Kind(), Scans[i].(*any))
-		if val == nil {
-			continue
-		}
-		qt.Elems[i].Set(reflect.ValueOf(utils.AutotAnyI64tAnyI(val)))
 	}
 	return qt.obj, nil
 }
@@ -290,7 +287,7 @@ func (qt *PgSQL) getSelectSQL(queryString string) string {
 	tmp = append(tmp, qt.Table...)
 	if queryString != "" {
 		tmp = append(tmp, "\" WHERE "...)
-		
+
 		// 使用计数器处理占位符
 		whereCounter := 1
 		var processedQuery strings.Builder

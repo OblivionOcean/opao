@@ -45,6 +45,7 @@ type Cache struct {
 func (elem *Elem) Get() any {
 	// fastest way to get unexp value from reflect.Value
 	ptr := unsafe.Pointer(elem.Value.UnsafeAddr())
+println(elem.Type, elem.Tag)
 	switch elem.Type.Kind() {
 	case reflect.Bool:
 		return *(*bool)(ptr)
@@ -151,6 +152,13 @@ func (elem *Elem) Set(val any) error {
 	return nil
 }
 
+func (elem *Elem) GetPtr() any {
+	if elem.Value.CanAddr() {
+		return reflect.NewAt(elem.Type, elem.Value.Addr().UnsafePointer()).Interface()
+	}
+	return nil
+}
+
 func (orm *ORM) Init(conn *sql.DB, driver func(*sql.DB, any, reflect.Type, string, []Elem, error) ObjectORM) {
 	orm.objectORM = driver
 	orm.conn = conn
@@ -169,6 +177,7 @@ func (o *ORM) Register(tableName string, object any) error {
 	numIndex := runtime.TypeFieldLen(objTypePtr)
 	elems := make([]Elem, numIndex)
 	field := &reflect.StructField{}
+	ei:=0
 	for i := 0; i < numIndex; i++ {
 		runtime.GetField(field, objTypePtr, i)
 		tagName, ok := runtime.GetTag(field.Tag, "db")
@@ -178,7 +187,6 @@ func (o *ORM) Register(tableName string, object any) error {
 			tagName = field.Name
 		}
 		if !ok || tagName == "-" || tagName == "" || field.Type.Kind() == reflect.Invalid || field.Type.Kind() == reflect.Func || field.Type.Kind() == reflect.Chan || field.Type.Kind() == reflect.UnsafePointer || field.Type.Kind() == reflect.Map || field.Type.Kind() == reflect.Interface || field.Type.Kind() == reflect.Slice || field.Type.Kind() == reflect.Array || field.Type.Kind() == reflect.Ptr || field.Type.Kind() == reflect.Struct {
-			numIndex--
 			continue
 		}
 		if okOption && option != "" && option != "-" {
@@ -196,14 +204,18 @@ func (o *ORM) Register(tableName string, object any) error {
 					optMap[opt] = val
 				}
 			}
+   			elems[ei].Option = optMap
+		} else {
+			elems[ei].Option = make(map[string]string, 0)
 		}
-		elems[i].Index = i
-		elems[i].Type = field.Type
-		elems[i].Tag = tagName
-		elems[i].Offset = field.Offset
+		elems[ei].Index = i
+		elems[ei].Type = field.Type
+		elems[ei].Tag = tagName
+		elems[ei].Offset = field.Offset
+		ei++
 	}
 	o.caches.Store(objType, Cache{
-		Elems:   elems[:numIndex],
+		Elems:   elems[:ei],
 		Table:   tableName,
 		ObjType: objType,
 	})

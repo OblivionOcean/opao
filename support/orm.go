@@ -185,8 +185,13 @@ func (o *ORM) Register(tableName string, object any) error {
 			optMap := make(map[string]string, utils.CountByte(utils.String2Slice(option), ';')+1)
 			tmp := utils.SplitStringByByte(option, ';')
 			for i := 0; i < len(tmp); i++ {
-				opt := tmp[i][:strings.IndexByte(tmp[i], '=')]
-				val := tmp[i][strings.IndexByte(tmp[i], '=')+1:]
+				sepIndex := strings.IndexByte(tmp[i], '=')
+				if sepIndex == -1 {
+					optMap[tmp[i]] = "-"
+					continue
+				}
+				opt := tmp[i][:sepIndex]
+				val := tmp[i][sepIndex+1:]
 				if opt != "" {
 					optMap[opt] = val
 				}

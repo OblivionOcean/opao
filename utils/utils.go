@@ -11,23 +11,22 @@ import (
 	"unsafe"
 )
 
-// go:inline
+//go:inline
 func String2Slice(s string) (b []byte) {
 	return unsafe.Slice(unsafe.StringData(s), len(s))
 }
 
-// go:inline
+//go:inline
 func Bytes2String(b []byte) string {
 	return unsafe.String(&b[0], len(b))
-}	
+}
 
-// go:inline
+//go:inline
 func Byte2String(b byte) string {
 	return unsafe.String(&b, 1)
 }
 
-
-// go:inline
+//go:inline
 func BytesCombine2(pBytes ...[]byte) []byte {
 	return bytes.Join(pBytes, String2Slice(""))
 }
@@ -42,7 +41,7 @@ func ContainsInSlice(items []string, item string) bool {
 	return false
 }
 
-// gp:inline
+//go:inline
 func Strings2Ints(strs []string) []int {
 	ints := []int{}
 	for i := 0; i < len(strs); i++ {
@@ -296,10 +295,28 @@ func GetSlicesSize(slice [][]byte) int {
 	sliceLength := len(slice)
 	size := 0
 	if sliceLength == 0 {
-	    return 0
+		return 0
 	}
-    for i := 0; i < sliceLength; i++ {
-        size += len(slice[i])
-    }
+	for i := 0; i < sliceLength; i++ {
+		size += len(slice[i])
+	}
 	return size
 }
+
+func SplitStringByByte(s string, sep byte) []string {
+	bs := String2Slice(s)
+	result := make([]string, 0, CountByte(bs, sep)+1)
+	start:=0
+	for {
+		  index := bytes.IndexByte(bs, sep)
+  if index == -1 {
+   result = append(result, s[start:])
+   break
+  }
+  result = append(result, s[start:index])
+ }
+ return result
+}
+
+//go:linkname CountByte bytealg.Count
+func CountByte(s []byte, sep byte) int

@@ -74,7 +74,8 @@ func (qt *MySQL) Update(queryParts ...any) error {
 		copy(values[elemsLeng:], args)
 
 	}
-	_, err := qt.conn.Exec(utils.Bytes2String(tmp), values...)
+	r, err := qt.conn.Exec(utils.Bytes2String(tmp), values...)
+	support.WriteLii(qt.Elems, r)
 	return err
 }
 
@@ -141,7 +142,8 @@ func (qt *MySQL) Create() error {
 		}
 	}
 	tmp = append(tmp, ");"...)
-	_, err := qt.conn.Exec(utils.Bytes2String(tmp), values...)
+	r, err := qt.conn.Exec(utils.Bytes2String(tmp), values...)
+	support.WriteLii(qt.Elems, r)
 	return err
 }
 

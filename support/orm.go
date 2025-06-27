@@ -4,10 +4,12 @@ import (
 	"database/sql"
 	"errors"
 	"reflect"
+	"strings"
 	"sync"
 	"unsafe"
 
 	"github.com/OblivionOcean/opao/internal/runtime"
+	"github.com/OblivionOcean/opao/utils"
 )
 
 type ORM struct {
@@ -26,11 +28,12 @@ type ObjectORM interface {
 }
 
 type Elem struct {
-	Index int
-	Type  reflect.Type
-	Tag   string
-	Value reflect.Value
+	Index  int
+	Type   reflect.Type
+	Tag    string
+	Value  reflect.Value
 	Offset uintptr
+	Option map[string]string
 }
 
 type Cache struct {
@@ -65,7 +68,8 @@ func (elem *Elem) Get() any {
 		return *(*uint8)(ptr)
 	case reflect.Int64:
 		return *(*int64)(ptr)
-	case reflect.Int32:	return *(*int32)(ptr)
+	case reflect.Int32:
+		return *(*int32)(ptr)
 	case reflect.Int16:
 		return *(*int16)(ptr)
 	case reflect.Int8:
@@ -168,9 +172,25 @@ func (o *ORM) Register(tableName string, object any) error {
 	for i := 0; i < numIndex; i++ {
 		runtime.GetField(field, objTypePtr, i)
 		tagName, ok := runtime.GetTag(field.Tag, "db")
+		option, okOption := runtime.GetTag(field.Tag, "option")
+		if !ok && (okOption && option != "-" && option != "") {
+			ok = true
+			tagName = field.Name
+		}
 		if !ok || tagName == "-" || tagName == "" || field.Type.Kind() == reflect.Invalid || field.Type.Kind() == reflect.Func || field.Type.Kind() == reflect.Chan || field.Type.Kind() == reflect.UnsafePointer || field.Type.Kind() == reflect.Map || field.Type.Kind() == reflect.Interface || field.Type.Kind() == reflect.Slice || field.Type.Kind() == reflect.Array || field.Type.Kind() == reflect.Ptr || field.Type.Kind() == reflect.Struct {
 			numIndex--
 			continue
+		}
+		if okOption && option != "" && option != "-" {
+			optMap := make(map[string]string, utils.CountByte(utils.String2Slice(option), ';')+1)
+			tmp := utils.SplitStringByByte(option, ';')
+			for i := 0; i < len(tmp); i++ {
+				opt := tmp[i][:strings.IndexByte(tmp[i], '=')]
+				val := tmp[i][strings.IndexByte(tmp[i], '=')+1:]
+				if opt != "" {
+					optMap[opt] = val
+				}
+			}
 		}
 		elems[i].Index = i
 		elems[i].Type = field.Type
@@ -235,4 +255,17 @@ func (sc *SafeCache) Store(key reflect.Type, value Cache) {
 	sc.mu.Lock()
 	defer sc.mu.Unlock()
 	sc.cache[key] = value
+}
+
+func WriteLii(elems []Elem, r sql.Result) {
+	elemsLeng := len(elems)
+	lii, liie := r.LastInsertId()
+	if liie == nil {
+		for i := 0; i < elemsLeng; i++ {
+			elem := elems[i]
+			if elem.Option["autoIncrement"] == "-" {
+				elems[i].Value.Set(reflect.ValueOf(utils.AutotAnyI64tAnyI(lii)))
+			}
+		}
+	}
 }

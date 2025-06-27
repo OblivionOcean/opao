@@ -81,7 +81,8 @@ func (qt *PgSQL) Update(queryParts ...any) error {
 	for i := 0; i < len(qt.Elems); i++ {
 		tmp = append(tmp, fmt.Sprintf("\"=$%d", i+1)...)
 	}
-	_, err := qt.conn.Exec(utils.Bytes2String(tmp), values...)
+	r, err := qt.conn.Exec(utils.Bytes2String(tmp), values...)
+	support.WriteLii(qt.Elems, r)
 	return err
 }
 
@@ -153,7 +154,8 @@ func (qt *PgSQL) Create() error {
 		}
 	}
 	tmp = append(tmp, ");"...)
-	_, err := qt.conn.Exec(utils.Bytes2String(tmp), values...)
+	r, err := qt.conn.Exec(utils.Bytes2String(tmp), values...)
+	support.WriteLii(qt.Elems, r)
 	return err
 }
 

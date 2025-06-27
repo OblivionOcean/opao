@@ -8,7 +8,7 @@ import (
 	"github.com/OblivionOcean/opao/support/utils"
 )
 
-// go:inline
+//go:inline
 func (qt *Sqlite) buildQuery(queryParts ...any) (string, []any) {
 	if len(queryParts) == 0 {
 		return "", nil

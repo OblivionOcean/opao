@@ -280,8 +280,10 @@ func (qt *MySQL) getSelectSQL(queryString string) string {
 	tmp = append(tmp, " FROM `"...)
 
 	tmp = append(tmp, qt.Table...)
+
+	tmp = append(tmp, "`"...)
 	if queryString != "" {
-		tmp = append(tmp, "` WHERE "...)
+		tmp = append(tmp, " WHERE "...)
 
 		tmp = append(tmp, queryString...)
 	}

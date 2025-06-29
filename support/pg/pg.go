@@ -285,8 +285,9 @@ func (qt *PgSQL) getSelectSQL(queryString string) string {
 	}
 	tmp = append(tmp, " FROM \""...)
 	tmp = append(tmp, qt.Table...)
+	tmp = append(tmp, '"')
 	if queryString != "" {
-		tmp = append(tmp, "\" WHERE "...)
+		tmp = append(tmp, " WHERE "...)
 
 		// 使用计数器处理占位符
 		whereCounter := 1

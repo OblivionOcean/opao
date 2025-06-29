@@ -45,7 +45,6 @@ type Cache struct {
 func (elem *Elem) Get() any {
 	// fastest way to get unexp value from reflect.Value
 	ptr := unsafe.Pointer(elem.Value.UnsafeAddr())
-println(elem.Type, elem.Tag)
 	switch elem.Type.Kind() {
 	case reflect.Bool:
 		return *(*bool)(ptr)

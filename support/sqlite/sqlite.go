@@ -282,8 +282,9 @@ func (qt *Sqlite) getSelectSQL(queryString string) string {
 
 	tmp = append(tmp, qt.Table...)
 
+	tmp = append(tmp, '"')
 	if queryString != "" {
-		tmp = append(tmp, "\" WHERE "...)
+		tmp = append(tmp, " WHERE "...)
 		// SQLite使用问号占位符
 		tmp = append(tmp, queryString...)
 	}

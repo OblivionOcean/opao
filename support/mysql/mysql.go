@@ -169,7 +169,7 @@ func (qt *MySQL) FindAll(queryParts ...any) ([]any, error) {
 		obj := reflect.New(qt.objType).Elem()
 		Scans := make([]any, elemsLen)
 		for i := 0; i < elemsLen; i++ {
-			Scans[i] = reflect.NewAt(qt.Elems[i].Type, obj.Index(qt.Elems[i].Index).Addr().UnsafePointer()).Interface()
+			Scans[i] = reflect.NewAt(qt.Elems[i].Type, obj.Field(qt.Elems[i].Index).Addr().UnsafePointer()).Interface()
 		}
 		err := rows.Scan(Scans...)
 		if err != nil {

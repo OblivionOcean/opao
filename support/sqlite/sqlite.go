@@ -38,6 +38,9 @@ func (qt *Sqlite) Update(queryParts ...any) error {
 	queryStringLen := len(query)
 	elemsNameLength := 0
 	for i := 0; i < elemsLeng; i++ {
+		if qt.Elems[i].Option["autoIncrement"] == "-" {
+			continue
+		}
 		elemsNameLength += len(qt.Elems[i].Tag) + 4
 		if i != elemsLeng-1 {
 			elemsNameLength += 1
@@ -55,6 +58,9 @@ func (qt *Sqlite) Update(queryParts ...any) error {
 
 	values := make([]any, elemsLeng+len(args))
 	for i := 0; i < elemsLeng; i++ {
+		if qt.Elems[i].Option["autoIncrement"] == "-" {
+			continue
+		}
 		tmp = append(tmp, '"')
 
 		tmp = append(tmp, qt.Elems[i].Tag...)
@@ -109,6 +115,9 @@ func (qt *Sqlite) Create() error {
 	tabNameLen := len(qt.Table)
 	elemsNameLength := 0
 	for i := 0; i < elemsLeng; i++ {
+		if qt.Elems[i].Option["autoIncrement"] == "-" {
+			continue
+		}
 		elemsNameLength += len(qt.Elems[i].Tag) + 3
 		if i != elemsLeng-1 {
 			elemsNameLength += 2
@@ -121,6 +130,9 @@ func (qt *Sqlite) Create() error {
 
 	values := make([]any, elemsLeng)
 	for i := 0; i < elemsLeng; i++ {
+		if qt.Elems[i].Option["autoIncrement"] == "-" {
+			continue
+		}
 		tmp = append(tmp, '"')
 
 		tmp = append(tmp, qt.Elems[i].Tag...)
@@ -136,6 +148,9 @@ func (qt *Sqlite) Create() error {
 	tmp = append(tmp, ") VALUES ("...)
 
 	for i := 0; i < elemsLeng; i++ {
+		if qt.Elems[i].Option["autoIncrement"] == "-" {
+			continue
+		}
 		tmp = append(tmp, '?')
 
 		if i != elemsLeng-1 {

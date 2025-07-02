@@ -46,6 +46,9 @@ func (qt *PgSQL) Update(queryParts ...any) error {
 	queryStringLen := len(query)
 	elemsNameLength := 0
 	for i := 0; i < elemsLeng; i++ {
+		if qt.Elems[i].Option["autoIncrement"] == "-" {
+			continue
+		}
 		elemsNameLength += len(qt.Elems[i].Tag) + 4
 		if i != elemsLeng-1 {
 			elemsNameLength += 1
@@ -61,10 +64,18 @@ func (qt *PgSQL) Update(queryParts ...any) error {
 	tmp = append(tmp, qt.Table...)
 	tmp = append(tmp, "\" SET "...)
 
+	whereCounter :=1
+	// 修正占位符生成逻辑
+	for i := 0; i < len(qt.Elems); i++ {
+		if qt.Elems[i].Option["autoIncrement"] == "-" {
+			continue
+		}
+		whereCounter++
+		tmp = append(tmp, fmt.Sprintf("\"=$%d", whereCounter)...)
+	}
 	if query != "" {
 		tmp = append(tmp, " WHERE "...)
 		// 替换问号为 pgsql 占位符格式
-		whereCounter := elemsLeng + 1
 		var processedQuery strings.Builder
 		for _, c := range query {
 			if c == '?' {
@@ -75,10 +86,6 @@ func (qt *PgSQL) Update(queryParts ...any) error {
 			}
 		}
 		tmp = append(tmp, processedQuery.String()...)
-	}
-	// 修正占位符生成逻辑
-	for i := 0; i < len(qt.Elems); i++ {
-		tmp = append(tmp, fmt.Sprintf("\"=$%d", i+1)...)
 	}
 	r, err := qt.conn.Exec(utils.Bytes2String(tmp), values...)
 	if err != nil {
@@ -127,6 +134,9 @@ func (qt *PgSQL) Create() error {
 	tabNameLen := len(qt.Table)
 	elemsNameLength := 0
 	for i := 0; i < elemsLeng; i++ {
+		if qt.Elems[i].Option["autoIncrement"] == "-" {
+			continue
+		}
 		elemsNameLength += len(qt.Elems[i].Tag) + 3
 		if i != elemsLeng-1 {
 			elemsNameLength += 2
@@ -150,6 +160,9 @@ func (qt *PgSQL) Create() error {
 	tmp = append(tmp, ") VALUES ("...)
 	// 修改 VALUES 占位符为 $n 格式
 	for i := 0; i < elemsLeng; i++ {
+		if qt.Elems[i].Option["autoIncrement"] == "-" {
+			continue
+		}
 		tmp = append(tmp, fmt.Sprintf("$%d", i+1)...)
 		if i != elemsLeng-1 {
 			tmp = append(tmp, ',')

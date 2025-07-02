@@ -35,9 +35,12 @@ func (qt *PgSQL) Error() error {
 func (qt *PgSQL) Update(queryParts ...any) error {
 	query, args := qt.buildQuery(queryParts...)
 	// 修改参数拼接逻辑，将字段值和查询参数合并
-	values := make([]any, len(qt.Elems))
+	values := make([]any, 0, len(qt.Elems))
 	for i := 0; i < len(qt.Elems); i++ {
-		values[i] = qt.Elems[i].Get()
+		if qt.Elems[i].Option["autoIncrement"] == "-" {
+			continue
+		}
+		values = append(values, qt.Elems[i].Get())
 	}
 	values = append(values, args...)
 	// Fetch tag and corresponding stored data
@@ -147,12 +150,12 @@ func (qt *PgSQL) Create() error {
 	tmp = append(tmp, qt.Table...)
 	tmp = append(tmp, "\" ("...)
 
-	values := make([]any, elemsLeng)
+	values := make([]any, 0, elemsLeng)
 	for i := 0; i < elemsLeng; i++ {
 		tmp = append(tmp, '"')
 		tmp = append(tmp, qt.Elems[i].Tag...)
 		tmp = append(tmp, '"')
-		values[i] = qt.Elems[i].Get()
+		values = append(values, qt.Elems[i].Get())
 		if i != elemsLeng-1 {
 			tmp = append(tmp, ',')
 		}

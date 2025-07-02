@@ -56,28 +56,23 @@ func (qt *Sqlite) Update(queryParts ...any) error {
 	tmp = append(tmp, qt.Table...)
 	tmp = append(tmp, "\" SET "...)
 
-	values := make([]any, elemsLeng+len(args))
+	values := make([]any, 0, elemsLeng+len(args))
 	for i := 0; i < elemsLeng; i++ {
 		if qt.Elems[i].Option["autoIncrement"] == "-" {
 			continue
 		}
 		tmp = append(tmp, '"')
-
 		tmp = append(tmp, qt.Elems[i].Tag...)
-
 		tmp = append(tmp, "\"=?"...)
-
 		if i != elemsLeng-1 {
 			tmp = append(tmp, ',')
-
 		}
-		values[i] = qt.Elems[i].Get()
+		values = append(values, qt.Elems[i].Get())
 	}
 	if query != "" {
 		tmp = append(tmp, " WHERE "...)
 		tmp = append(tmp, query...)
-		copy(values[elemsLeng:], args)
-
+		values = append(values, args...)
 	}
 	r, err := qt.conn.Exec(utils.Bytes2String(tmp), values...)
 	if err != nil {
@@ -128,7 +123,7 @@ func (qt *Sqlite) Create() error {
 	tmp = append(tmp, qt.Table...)
 	tmp = append(tmp, "\" ("...)
 
-	values := make([]any, elemsLeng)
+	values := make([]any, 0, elemsLeng)
 	for i := 0; i < elemsLeng; i++ {
 		if qt.Elems[i].Option["autoIncrement"] == "-" {
 			continue
@@ -139,7 +134,7 @@ func (qt *Sqlite) Create() error {
 
 		tmp = append(tmp, '"')
 
-		values[i] = qt.Elems[i].Get()
+		values = append(values, qt.Elems[i].Get())
 		if i != elemsLeng-1 {
 			tmp = append(tmp, ',')
 

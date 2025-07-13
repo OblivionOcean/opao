@@ -99,7 +99,7 @@ func (qt *MySQL) Delete(queryParts ...any) error {
 	}
 	tmp = append(tmp, "DELETE FROM `"...)
 	tmp = append(tmp, qt.Table...)
-	tmp[13+tabNameLen] = '`'
+	tmp = append(tmp, '`')
 	if query != "" {
 		tmp = append(tmp, " WHERE "...)
 		tmp = append(tmp, query...)

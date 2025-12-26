@@ -37,12 +37,84 @@ func (qt *PgSQL) Update(queryParts ...any) error {
 	// 修改参数拼接逻辑，将字段值和查询参数合并
 	values := make([]any, 0, len(qt.Elems))
 	for i := 0; i < len(qt.Elems); i++ {
+		if qt.Elems[i].Zero() {
+			continue
+		}
 		if qt.Elems[i].Option["autoIncrement"] == "-" {
 			continue
 		}
 		values = append(values, qt.Elems[i].Get())
 	}
-	values = append(values, args...)
+	values = append(values, args)
+	// Fetch tag and corresponding stored data
+	elemsLeng := len(qt.Elems)
+	tabNameLen := len(qt.Table)
+	queryStringLen := len(query)
+	elemsNameLength := 0
+	for i := 0; i < elemsLeng; i++ {
+		if qt.Elems[i].Zero() {
+			continue
+		}
+		if qt.Elems[i].Option["autoIncrement"] == "-" {
+			continue
+		}
+		elemsNameLength += len(qt.Elems[i].Tag) + 4
+		if i != elemsLeng-1 {
+			elemsNameLength += 1
+		}
+	}
+	var buf utils.Buffer
+	if query == "" {
+		buf = utils.NewBuffer(15 + tabNameLen + elemsNameLength)
+	} else {
+		buf = utils.NewBuffer(21 + tabNameLen + queryStringLen + elemsNameLength)
+	}
+	buf.WriteString("UPDATE \"")
+	buf.WriteString(qt.Table)
+	buf.WriteString("\" SET ")
+
+	whereCounter := 1
+	// 修正占位符生成逻辑
+	for i := 0; i < len(qt.Elems); i++ {
+		if qt.Elems[i].Option["autoIncrement"] == "-" {
+			continue
+		}
+		whereCounter++
+		buf.WriteString(fmt.Sprintf("\"=$%d", whereCounter))
+	}
+	if query != "" {
+		buf.WriteString(" WHERE ")
+		// 替换问号为 pgsql 占位符格式
+		var processedQuery strings.Builder
+		for _, c := range query {
+			if c == '?' {
+				processedQuery.WriteString(fmt.Sprintf("$%d", whereCounter))
+				whereCounter++
+			} else {
+				processedQuery.WriteRune(c)
+			}
+		}
+		buf.WriteString(processedQuery.String())
+	}
+	r, err := qt.conn.Exec(buf.String(), values...)
+	if err != nil {
+		return err
+	}
+	support.WriteLii(qt.Elems, r)
+	return err
+}
+
+func (qt *PgSQL) Save(queryParts ...any) error {
+	query, args := qt.buildQuery(queryParts...)
+	// 修改参数拼接逻辑，将字段值和查询参数合并
+	values := make([]any, 0, len(qt.Elems))
+	for i := 0; i < len(qt.Elems); i++ {
+		if qt.Elems[i].Option["autoIncrement"] == "-" {
+			continue
+		}
+		values = append(values, qt.Elems[i].Get())
+	}
+	values = append(values, args)
 	// Fetch tag and corresponding stored data
 	elemsLeng := len(qt.Elems)
 	tabNameLen := len(qt.Table)
@@ -57,27 +129,27 @@ func (qt *PgSQL) Update(queryParts ...any) error {
 			elemsNameLength += 1
 		}
 	}
-	var tmp []byte
+	var buf utils.Buffer
 	if query == "" {
-		tmp = make([]byte, 0, 15+tabNameLen+elemsNameLength)
+		buf = utils.NewBuffer(15 + tabNameLen + elemsNameLength)
 	} else {
-		tmp = make([]byte, 0, 21+tabNameLen+queryStringLen+elemsNameLength)
+		buf = utils.NewBuffer(21 + tabNameLen + queryStringLen + elemsNameLength)
 	}
-	tmp = append(tmp, "UPDATE \""...)
-	tmp = append(tmp, qt.Table...)
-	tmp = append(tmp, "\" SET "...)
+	buf.WriteString("UPDATE \"")
+	buf.WriteString(qt.Table)
+	buf.WriteString("\" SET ")
 
-	whereCounter :=1
+	whereCounter := 1
 	// 修正占位符生成逻辑
 	for i := 0; i < len(qt.Elems); i++ {
 		if qt.Elems[i].Option["autoIncrement"] == "-" {
 			continue
 		}
 		whereCounter++
-		tmp = append(tmp, fmt.Sprintf("\"=$%d", whereCounter)...)
+		buf.WriteString(fmt.Sprintf("\"=$%d", whereCounter))
 	}
 	if query != "" {
-		tmp = append(tmp, " WHERE "...)
+		buf.WriteString(" WHERE ")
 		// 替换问号为 pgsql 占位符格式
 		var processedQuery strings.Builder
 		for _, c := range query {
@@ -88,9 +160,9 @@ func (qt *PgSQL) Update(queryParts ...any) error {
 				processedQuery.WriteRune(c)
 			}
 		}
-		tmp = append(tmp, processedQuery.String()...)
+		buf.WriteString(processedQuery.String())
 	}
-	r, err := qt.conn.Exec(utils.Bytes2String(tmp), values...)
+	r, err := qt.conn.Exec(buf.String(), values...)
 	if err != nil {
 		return err
 	}
@@ -103,17 +175,17 @@ func (qt *PgSQL) Delete(queryParts ...any) error {
 	query, args := qt.buildQuery(queryParts...)
 	tabNameLen := len(qt.Table)
 	queryStringLen := len(query)
-	var tmp []byte
+	var buf utils.Buffer
 	if query == "" {
-		tmp = make([]byte, 0, 14+tabNameLen)
+		buf = utils.NewBuffer(14 + tabNameLen)
 	} else {
-		tmp = make([]byte, 0, 20+tabNameLen+queryStringLen)
+		buf = utils.NewBuffer(20 + tabNameLen + queryStringLen)
 	}
-	tmp = append(tmp, "DELETE FROM \""...)
-	tmp = append(tmp, qt.Table...)
-	tmp = append(tmp, '"')
+	buf.WriteString("DELETE FROM \"")
+	buf.WriteString(qt.Table)
+	buf.WriteByte('"')
 	if query != "" {
-		tmp = append(tmp, " WHERE "...)
+		buf.WriteString(" WHERE ")
 		// 处理 WHERE 子句中的占位符
 		whereCounter := 1
 		var processedQuery strings.Builder
@@ -125,9 +197,9 @@ func (qt *PgSQL) Delete(queryParts ...any) error {
 				processedQuery.WriteRune(c)
 			}
 		}
-		tmp = append(tmp, processedQuery.String()...)
+		buf.WriteString(processedQuery.String())
 	}
-	_, err := qt.conn.Exec(utils.Bytes2String(tmp), args...)
+	_, err := qt.conn.Exec(buf.String(), args...)
 	return err
 }
 
@@ -145,34 +217,34 @@ func (qt *PgSQL) Create() error {
 			elemsNameLength += 2
 		}
 	}
-	tmp := make([]byte, 0, 29+tabNameLen+elemsNameLength)
-	tmp = append(tmp, "INSERT INTO \""...)
-	tmp = append(tmp, qt.Table...)
-	tmp = append(tmp, "\" ("...)
+	buf := utils.NewBuffer(29 + tabNameLen + elemsNameLength)
+	buf.WriteString("INSERT INTO \"")
+	buf.WriteString(qt.Table)
+	buf.WriteString("\" (")
 
 	values := make([]any, 0, elemsLeng)
 	for i := 0; i < elemsLeng; i++ {
-		tmp = append(tmp, '"')
-		tmp = append(tmp, qt.Elems[i].Tag...)
-		tmp = append(tmp, '"')
+		buf.WriteByte('"')
+		buf.WriteString(qt.Elems[i].Tag)
+		buf.WriteByte('"')
 		values = append(values, qt.Elems[i].Get())
 		if i != elemsLeng-1 {
-			tmp = append(tmp, ',')
+			buf.WriteByte(',')
 		}
 	}
-	tmp = append(tmp, ") VALUES ("...)
+	buf.WriteString(") VALUES (")
 	// 修改 VALUES 占位符为 $n 格式
 	for i := 0; i < elemsLeng; i++ {
 		if qt.Elems[i].Option["autoIncrement"] == "-" {
 			continue
 		}
-		tmp = append(tmp, fmt.Sprintf("$%d", i+1)...)
+		buf.WriteString(fmt.Sprintf("$%d", i+1))
 		if i != elemsLeng-1 {
-			tmp = append(tmp, ',')
+			buf.WriteByte(',')
 		}
 	}
-	tmp = append(tmp, ");"...)
-	r, err := qt.conn.Exec(utils.Bytes2String(tmp), values...)
+	buf.WriteString(");")
+	r, err := qt.conn.Exec(buf.String(), values...)
 	if err != nil {
 		return err
 	}
@@ -186,6 +258,9 @@ func (qt *PgSQL) FindAll(queryParts ...any) ([]any, error) {
 	rows, err := qt.conn.Query(qt.getSelectSQL(query), args...)
 	elemsLen := len(qt.Elems)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
 		return nil, err
 	}
 	defer func(rows *sql.Rows) {
@@ -200,6 +275,9 @@ func (qt *PgSQL) FindAll(queryParts ...any) ([]any, error) {
 		}
 		err := rows.Scan(Scans...)
 		if err != nil {
+			if err == sql.ErrNoRows {
+				return nil, nil
+			}
 			return nil, err
 		}
 		objs = append(objs, obj.Interface())
@@ -207,34 +285,63 @@ func (qt *PgSQL) FindAll(queryParts ...any) ([]any, error) {
 	return objs, nil
 }
 
+// Find retrieves a single record from the database based on the provided query string and values
 func (qt *PgSQL) Find(queryParts ...any) (any, error) {
 	query, args := qt.buildQuery(queryParts...)
-	rows, err := qt.conn.Query(qt.getSelectSQL(query), args...)
+
+	row := qt.conn.QueryRow(qt.getSelectSQL(query), args...)
+
 	elemsLen := len(qt.Elems)
-	if err != nil {
-		return nil, err
-	}
-	defer func(rows *sql.Rows) {
-		_ = rows.Close()
-	}(rows)
-	if !rows.Next() {
-		if err = rows.Err(); err != nil {
-			return nil, err
-		}
-		// 如果没有数据，返回空对象
-		if IsEmpty(err) {
-			return nil, nil
-		}
-	}
 	Scans := make([]any, elemsLen)
 	for i := 0; i < elemsLen; i++ {
-		Scans[i] = qt.Elems[i].GetPtr()
+		Scans[i] = qt.Elems[i].GetInterface()
 	}
-	err = rows.Scan(Scans...)
+
+	err := row.Scan(Scans...)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
 		return nil, err
 	}
+
 	return qt.obj, nil
+}
+
+func (qt *PgSQL) Count(queryParts ...any) (int, error) {
+	query, args := qt.buildQuery(queryParts...)
+	tabNameLen := len(qt.Table)
+	queryStringLen := len(query)
+	var buf utils.Buffer
+	if query == "" {
+		buf = utils.NewBuffer(23 + tabNameLen)
+	} else {
+		buf = utils.NewBuffer(30 + tabNameLen + queryStringLen)
+	}
+	buf.WriteString("SELECT COUNT(*) FROM \"")
+
+	buf.WriteString(qt.Table)
+
+	buf.WriteString("\"")
+	if query != "" {
+		buf.WriteString(" WHERE ")
+
+		// 使用计数器处理占位符
+		whereCounter := 1
+		var processedQuery strings.Builder
+		for _, c := range query {
+			if c == '?' {
+				processedQuery.WriteString(fmt.Sprintf("$%d", whereCounter))
+				whereCounter++
+			} else {
+				processedQuery.WriteRune(c)
+			}
+		}
+		buf.WriteString(processedQuery.String())
+	}
+	var counter int
+	err := qt.conn.QueryRow(buf.String(), args).Scan(&counter)
+	return counter, err
 }
 
 // autotType performs type conversion based on the destination type and source value
@@ -283,27 +390,27 @@ func (qt *PgSQL) getSelectSQL(queryString string) string {
 			elemsNameLength += 1
 		}
 	}
-	var tmp []byte
+	var buf utils.Buffer
 	if queryString == "" {
-		tmp = make([]byte, 0, 15+tabNameLen+elemsNameLength)
+		buf = utils.NewBuffer(15 + tabNameLen + elemsNameLength)
 	} else {
-		tmp = make([]byte, 0, 22+tabNameLen+queryStringLen+elemsNameLength)
+		buf = utils.NewBuffer(22 + tabNameLen + queryStringLen + elemsNameLength)
 	}
-	tmp = append(tmp, "SELECT "...)
+	buf.WriteString("SELECT ")
 
 	for i := 0; i < elemsLeng; i++ {
-		tmp = append(tmp, '"')
-		tmp = append(tmp, qt.Elems[i].Tag...)
-		tmp = append(tmp, '"')
+		buf.WriteByte('"')
+		buf.WriteString(qt.Elems[i].Tag)
+		buf.WriteByte('"')
 		if i != elemsLeng-1 {
-			tmp = append(tmp, ',')
+			buf.WriteByte(',')
 		}
 	}
-	tmp = append(tmp, " FROM \""...)
-	tmp = append(tmp, qt.Table...)
-	tmp = append(tmp, '"')
+	buf.WriteString(" FROM \"")
+	buf.WriteString(qt.Table)
+	buf.WriteByte('"')
 	if queryString != "" {
-		tmp = append(tmp, " WHERE "...)
+		buf.WriteString(" WHERE ")
 
 		// 使用计数器处理占位符
 		whereCounter := 1
@@ -316,7 +423,7 @@ func (qt *PgSQL) getSelectSQL(queryString string) string {
 				processedQuery.WriteRune(c)
 			}
 		}
-		tmp = append(tmp, processedQuery.String()...)
+		buf.WriteString(processedQuery.String())
 	}
-	return utils.Bytes2String(tmp)
+	return buf.String()
 }

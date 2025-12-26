@@ -22,140 +22,11 @@ type ObjectORM interface {
 	Error() error
 	Create() error
 	Update(args ...any) error
+	Save(args ...any) error
 	Delete(args ...any) error
 	Find(args ...any) (any, error)
 	FindAll(args ...any) ([]any, error)
-}
-
-type Elem struct {
-	Index  int
-	Type   reflect.Type
-	Tag    string
-	Value  reflect.Value
-	Offset uintptr
-	Option map[string]string
-}
-
-type Cache struct {
-	Elems   []Elem
-	Table   string
-	ObjType reflect.Type
-}
-
-func (elem *Elem) Get() any {
-	// fastest way to get unexp value from reflect.Value
-	ptr := unsafe.Pointer(elem.Value.UnsafeAddr())
-	switch elem.Type.Kind() {
-	case reflect.Bool:
-		return *(*bool)(ptr)
-	case reflect.Int:
-		return *(*int)(ptr)
-	case reflect.String:
-		return *(*string)(ptr)
-	case reflect.Uint:
-		return *(*uint)(ptr)
-	case reflect.Float64:
-		return *(*float64)(ptr)
-	case reflect.Float32:
-		return *(*float32)(ptr)
-	case reflect.Uint64:
-		return *(*uint64)(ptr)
-	case reflect.Uint32:
-		return *(*uint32)(ptr)
-	case reflect.Uint16:
-		return *(*uint16)(ptr)
-	case reflect.Uint8:
-		return *(*uint8)(ptr)
-	case reflect.Int64:
-		return *(*int64)(ptr)
-	case reflect.Int32:
-		return *(*int32)(ptr)
-	case reflect.Int16:
-		return *(*int16)(ptr)
-	case reflect.Int8:
-		return *(*int8)(ptr)
-	case reflect.Complex64:
-		return *(*complex64)(ptr)
-	case reflect.Complex128:
-		return *(*complex128)(ptr)
-	case reflect.Uintptr:
-		return *(*uintptr)(ptr)
-	case reflect.Invalid:
-		return nil
-	case reflect.Ptr, reflect.Chan:
-		return elem.Value.Pointer()
-	}
-	if elem.Value.CanInterface() {
-		return elem.Value.Interface()
-	}
-	return reflect.NewAt(elem.Type, ptr).Elem().Interface()
-}
-
-func (elem *Elem) Set(val any) error {
-	if elem.Type != reflect.TypeOf(val) {
-		return errors.New("type mismatch")
-	}
-	ptr := unsafe.Pointer(elem.Value.UnsafeAddr())
-	switch elem.Type.Kind() {
-	case reflect.Bool:
-		*(*bool)(ptr) = val.(bool)
-	case reflect.Int:
-		*(*int)(ptr) = val.(int)
-	case reflect.String:
-		*(*string)(ptr) = val.(string)
-	case reflect.Uint:
-		*(*uint)(ptr) = val.(uint)
-	case reflect.Float64:
-		*(*float64)(ptr) = val.(float64)
-	case reflect.Float32:
-		*(*float32)(ptr) = val.(float32)
-	case reflect.Uint64:
-		*(*uint64)(ptr) = val.(uint64)
-		return nil
-	case reflect.Uint32:
-		*(*uint32)(ptr) = val.(uint32)
-		return nil
-	case reflect.Uint16:
-		*(*uint16)(ptr) = val.(uint16)
-		return nil
-	case reflect.Uint8:
-		*(*uint8)(ptr) = val.(uint8)
-		return nil
-	case reflect.Int64:
-		*(*int64)(ptr) = val.(int64)
-		return nil
-	case reflect.Int32:
-		*(*int32)(ptr) = val.(int32)
-		return nil
-	case reflect.Int16:
-		*(*int16)(ptr) = val.(int16)
-		return nil
-	case reflect.Int8:
-		*(*int8)(ptr) = val.(int8)
-		return nil
-	case reflect.Complex64:
-		*(*complex64)(ptr) = val.(complex64)
-		return nil
-	case reflect.Complex128:
-		*(*complex128)(ptr) = val.(complex128)
-		return nil
-	case reflect.Uintptr:
-		*(*uintptr)(ptr) = val.(uintptr)
-	case reflect.Invalid, reflect.Ptr, reflect.Chan:
-		return nil
-	}
-	if elem.Value.CanInterface() {
-		elem.Value.Set(reflect.ValueOf(val))
-	}
-	reflect.NewAt(elem.Type, ptr).Elem().Set(reflect.ValueOf(val))
-	return nil
-}
-
-func (elem *Elem) GetPtr() any {
-	if elem.Value.CanAddr() {
-		return reflect.NewAt(elem.Type, elem.Value.Addr().UnsafePointer()).Interface()
-	}
-	return nil
+	Count(args ...any) (int, error)
 }
 
 func (orm *ORM) Init(conn *sql.DB, driver func(*sql.DB, any, reflect.Type, string, []Elem, error) ObjectORM) {
@@ -176,7 +47,7 @@ func (o *ORM) Register(tableName string, object any) error {
 	numIndex := runtime.TypeFieldLen(objTypePtr)
 	elems := make([]Elem, numIndex)
 	field := &reflect.StructField{}
-	ei:=0
+	ei := 0
 	for i := 0; i < numIndex; i++ {
 		runtime.GetField(field, objTypePtr, i)
 		tagName, ok := runtime.GetTag(field.Tag, "db")
@@ -203,7 +74,7 @@ func (o *ORM) Register(tableName string, object any) error {
 					optMap[opt] = val
 				}
 			}
-   			elems[ei].Option = optMap
+			elems[ei].Option = optMap
 		} else {
 			elems[ei].Option = make(map[string]string, 0)
 		}
@@ -232,11 +103,12 @@ func (o *ORM) Load(object any) (orm ObjectORM) {
 		orm = o.objectORM(nil, nil, nil, "", nil, errors.New("object must be a pointer to a struct"))
 		return
 	}
+	objPtr := objValue.UnsafeAddr()
 	if rawCache, ok := o.caches.Load(objType); ok {
 		cache := rawCache
 		ElemsLength := len(cache.Elems)
 		for i := 0; i < ElemsLength; i++ {
-			cache.Elems[i].Value = objValue.Field(cache.Elems[i].Index)
+			cache.Elems[i].Ptr = unsafe.Pointer(objPtr + cache.Elems[i].Offset)
 		}
 		orm = o.objectORM(o.conn, object, cache.ObjType, cache.Table, cache.Elems, nil)
 		return
@@ -280,7 +152,7 @@ func WriteLii(elems []Elem, r sql.Result) {
 		for i := 0; i < elemsLeng; i++ {
 			elem := elems[i]
 			if elem.Option["autoIncrement"] == "-" {
-				elems[i].Value.Set(reflect.ValueOf(utils.AutotAnyI64tAnyI(lii)))
+				elems[i].Set(utils.AutotAnyI64tAnyI(lii))
 			}
 		}
 	}

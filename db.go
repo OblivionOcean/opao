@@ -47,6 +47,11 @@ func NewDatabase(sqlDriverName, linkInfo string) (*Database, error) {
 	return db, nil
 }
 
+// New 是对 NewDatabase 的别名，以匹配 README 用法
+func New(sqlDriverName, linkInfo string) (*Database, error) {
+	return NewDatabase(sqlDriverName, linkInfo)
+}
+
 func (db *Database) Close() error {
 	if db.Conn == nil {
 		return errors.New("database is not initialized")

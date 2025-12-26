@@ -18,6 +18,9 @@ func String2Slice(s string) (b []byte) {
 
 //go:inline
 func Bytes2String(b []byte) string {
+	if len(b) == 0 {
+		return ""
+	}
 	return unsafe.String(&b[0], len(b))
 }
 
@@ -161,23 +164,8 @@ func ToBytes(src any) []byte {
 	case nil:
 		return nil
 	case string:
-		type StringHeader struct {
-			Data uintptr
-			Len  int
-		}
-		type SliceHeader struct {
-			Data uintptr
-			Len  int
-			Cap  int
-		}
-		str := s
-		byts := []byte{}
-		bh := (*SliceHeader)(unsafe.Pointer(&str))
-		sh := (*StringHeader)(unsafe.Pointer(&byts))
-		bh.Data = sh.Data
-		bh.Len = sh.Len
-		bh.Cap = sh.Len
-		return byts
+		// Zero-copy read-only conversion; do NOT mutate the returned slice.
+		return String2Slice(s)
 	case byte:
 		return []byte{s}
 	case int, int8, int16, int32, int64, uint, uint16, uint32, uint64:
@@ -272,23 +260,6 @@ func AutotAnyI64tAnyI(Val any) any {
 	return Val
 }
 
-func ValIsNil(val reflect.Value) bool {
-	if !val.IsValid() {
-		return true
-	} else if val.CanFloat() || val.CanInt() || val.CanUint() || val.CanComplex() {
-		if val.IsZero() {
-			return true
-		}
-	} else if val.Kind() == reflect.String {
-		if val.String() == "" {
-			return true
-		}
-	} else if val.IsNil() {
-		return true
-	}
-	return false
-}
-
 func Used(...any) {}
 
 func GetSlicesSize(slice [][]byte) int {
@@ -306,16 +277,16 @@ func GetSlicesSize(slice [][]byte) int {
 func SplitStringByByte(s string, sep byte) []string {
 	bs := String2Slice(s)
 	result := make([]string, 0, CountByte(bs, sep)+1)
-	start:=0
-	for {
-		  index := bytes.IndexByte(bs, sep)
-  if index == -1 {
-   result = append(result, s[start:])
-   break
-  }
-  result = append(result, s[start:index])
- }
- return result
+	start := 0
+	for i := 0; i < len(bs); i++ {
+		if bs[i] == sep {
+			result = append(result, s[start:i])
+			start = i + 1
+		}
+	}
+	// Append the final segment
+	result = append(result, s[start:])
+	return result
 }
 
 func CountByte(s []byte, sep byte)  int {

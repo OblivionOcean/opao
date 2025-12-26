@@ -24,7 +24,7 @@ go get github.com/OblivionOcean/opao
 
 ## 基准测试
 
-> 本测试仅为SQL语句生成，不实际涉及实际数据库交互。测试结果不作为生产坏境参考值。测试的Gorm和opao均为为Classic版本，不是Gen版本。参与测试的Gorm为v1.31.1版本。
+> 本测试仅为SQL语句生成，不涉及实际数据库交互。测试结果不作为生产环境参考值。测试的Gorm和opao均为为Classic版本，不是Gen版本。参与测试的Gorm为v1.31.1版本。
 
 ```bash
 > go test -benchmem -bench=^Benchmark -v -cpuprofile ./cpu.pprof

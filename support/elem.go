@@ -119,7 +119,7 @@ func (elem *Elem) Set(val any) error {
 		*(*[]byte)(ptr) = val.([]byte)
 	}
 
-	if reflect.TypeOf(*(*time.Time)(nil)) == elem.Type || reflect.TypeOf((*time.Time)(nil)) == elem.Type && (*time.Time)(ptr) != nil {
+	if reflect.TypeOf((*time.Time)(nil)).Elem() == elem.Type || reflect.TypeOf((*time.Time)(nil)) == elem.Type && (*time.Time)(ptr) != nil {
 		*(*time.Time)(ptr) = val.(time.Time)
 	}
 

@@ -68,7 +68,7 @@ func (elem *Elem) Get() any {
 		return *(*[]byte)(ptr)
 	}
 
-	if reflect.TypeOf(*(*time.Time)(nil)) == elem.Type || reflect.TypeOf((*time.Time)(nil)) == elem.Type && (*time.Time)(ptr) != nil {
+	if reflect.TypeOf((*time.Time)(nil)).Elem() == elem.Type || reflect.TypeOf((*time.Time)(nil)) == elem.Type && (*time.Time)(ptr) != nil {
 		return *(*time.Time)(ptr)
 	}
 
@@ -128,7 +128,7 @@ func (elem *Elem) Set(val any) error {
 }
 
 func (elem *Elem) GetInterface() any {
-	if elem.Type.Kind()&flagAddr != 0  {
+	if elem.Type.Kind()&flagAddr != 0 {
 		return reflect.NewAt(elem.Type, elem.Ptr).Interface()
 	}
 	return nil

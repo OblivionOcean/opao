@@ -128,10 +128,7 @@ func (elem *Elem) Set(val any) error {
 }
 
 func (elem *Elem) GetInterface() any {
-	if elem.Type.Kind()&flagAddr != 0 {
-		return reflect.NewAt(elem.Type, elem.Ptr).Interface()
-	}
-	return nil
+	return reflect.NewAt(elem.Type, elem.Ptr).Interface()
 }
 
 func (elem *Elem) Zero() bool {

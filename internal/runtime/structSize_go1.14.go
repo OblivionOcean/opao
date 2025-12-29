@@ -4,5 +4,5 @@
 package runtime
 
 const (
-    abiTypeSize = 48
+	abiTypeSize = 48
 )

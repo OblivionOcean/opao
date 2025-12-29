@@ -12,7 +12,7 @@ import (
 )
 
 const (
-    EmptyQ = ""
+	EmptyQ = ""
 )
 
 type Database struct {

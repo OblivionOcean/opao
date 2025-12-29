@@ -289,7 +289,7 @@ func SplitStringByByte(s string, sep byte) []string {
 	return result
 }
 
-func CountByte(s []byte, sep byte)  int {
+func CountByte(s []byte, sep byte) int {
 	n := 0
 	for {
 		i := bytes.IndexByte(s, sep)

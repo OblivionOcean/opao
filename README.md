@@ -1,4 +1,6 @@
 # opao
+[![GoDoc](https://pkg.go.dev/badge/github.com/OblivionOcean/opao)](https://pkg.go.dev/github.com/OblivionOcean/opao)
+[![Go Report Card](https://goreportcard.com/badge/github.com/OblivionOcean/opao)](https://goreportcard.com/report/github.com/OblivionOcean/opao)
 一个小巧，简单的ORM🌟A small, simple ORM
 为了性能，它使用了`unsafe`+`cache`，同时保证类型安全和线程安全，尽可能的做到了最好。
 同时有很好的兼容性，可以运行在主流操作系统中，并且支持`go1.20+`

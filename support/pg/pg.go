@@ -45,7 +45,7 @@ func (qt *PgSQL) Update(queryParts ...any) error {
 		}
 		values = append(values, qt.Elems[i].Get())
 	}
-	values = append(values, args)
+	values = append(values, args...)
 	// Fetch tag and corresponding stored data
 	elemsLeng := len(qt.Elems)
 	tabNameLen := len(qt.Table)
@@ -114,7 +114,7 @@ func (qt *PgSQL) Save(queryParts ...any) error {
 		}
 		values = append(values, qt.Elems[i].Get())
 	}
-	values = append(values, args)
+	values = append(values, args...)
 	// Fetch tag and corresponding stored data
 	elemsLeng := len(qt.Elems)
 	tabNameLen := len(qt.Table)

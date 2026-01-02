@@ -81,7 +81,7 @@ func (qt *MySQL) Update(queryParts ...any) error {
 	if query != "" {
 		buf.WriteString(" WHERE ")
 		buf.WriteString(query)
-		values = append(values, args)
+		values = append(values, args...)
 	}
 	r, err := qt.conn.Exec(buf.String(), values...)
 	if err != nil {
@@ -134,7 +134,7 @@ func (qt *MySQL) Save(queryParts ...any) error {
 	if query != "" {
 		buf.WriteString(" WHERE ")
 		buf.WriteString(query)
-		values = append(values, args)
+		values = append(values, args...)
 	}
 	r, err := qt.conn.Exec(buf.String(), values...)
 	if err != nil {

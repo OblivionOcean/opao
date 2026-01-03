@@ -21,3 +21,10 @@ func (b *Buffer) WriteByte(c byte) {
 func (b Buffer) String() string {
 	return Bytes2String(b)
 }
+
+func (b *Buffer) TruncateLast(n int) {
+	if n <= 0 || len(*b) < n {
+		return
+	}
+	*b = (*b)[:len(*b)-n]
+}

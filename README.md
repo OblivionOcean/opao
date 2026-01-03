@@ -3,9 +3,13 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/OblivionOcean/opao)](https://goreportcard.com/report/github.com/OblivionOcean/opao)
 
 一个小巧，简单的ORM🌟A small, simple ORM
-为了性能，它使用了`unsafe`+`cache`，同时保证类型安全和线程安全，尽可能的做到了最好。
-同时有很好的兼容性，可以运行在主流操作系统中，并且支持`go1.20+`
-它集成了基础的`MySQL`、`PgSQL`、`SQLite3`
+
+为了性能，它使用了`unsafe`+`cache`，但同时保证类型安全和线程安全，尽可能的做到了安全性和性能最好。
+
+同时有很好的兼容性，可以运行在主流操作系统中，并且支持`go1.20+`。
+
+它集成了基础的`MySQL`、`PgSQL`、`SQLite3`支持并且无依赖外部库，你只需要引入对应的数据库驱动即可使用。
+
 ## 安装
 ```shell
 go get github.com/OblivionOcean/opao

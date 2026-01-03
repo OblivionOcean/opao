@@ -13,12 +13,12 @@ import (
 
 // PgSQL PostgreSQL 数据库 ORM 实现
 type PgSQL struct {
-	Table   string            // 表名
-	err     error             // 错误信息
-	Elems   []support.Elem   // 字段元素列表
-	conn    *sql.DB           // 数据库连接
-	obj     any               // 关联的对象
-	objType reflect.Type      // 对象类型
+	Table   string         // 表名
+	err     error          // 错误信息
+	Elems   []support.Elem // 字段元素列表
+	conn    *sql.DB        // 数据库连接
+	obj     any            // 关联的对象
+	objType reflect.Type   // 对象类型
 }
 
 // NewPg 创建 PostgreSQL ORM 实例
@@ -45,6 +45,7 @@ func (qt *PgSQL) Error() error {
 // 根据提供的查询条件和值更新记录,仅更新非零值且非自增字段的字段
 // 参数:
 //   - queryParts: 查询条件部分,可以是条件字符串和参数
+//
 // 返回:
 //   - error: 执行错误
 func (qt *PgSQL) Update(queryParts ...any) error {
@@ -130,6 +131,7 @@ func (qt *PgSQL) Update(queryParts ...any) error {
 // 与 Update 类似,但包含所有非自增字段(包括零值)
 // 参数:
 //   - queryParts: 查询条件部分,可以是条件字符串和参数
+//
 // 返回:
 //   - error: 执行错误
 func (qt *PgSQL) Save(queryParts ...any) error {
@@ -209,6 +211,7 @@ func (qt *PgSQL) Save(queryParts ...any) error {
 // 根据提供的查询条件删除匹配的记录
 // 参数:
 //   - queryParts: 查询条件部分,可以是条件字符串和参数
+//
 // 返回:
 //   - error: 执行错误
 func (qt *PgSQL) Delete(queryParts ...any) error {
@@ -309,6 +312,7 @@ func (qt *PgSQL) Create() error {
 // 根据提供的查询条件查询所有匹配的记录
 // 参数:
 //   - queryParts: 查询条件部分,可以是条件字符串和参数
+//
 // 返回:
 //   - []any: 查询结果对象列表
 //   - error: 执行错误
@@ -353,6 +357,7 @@ func (qt *PgSQL) FindAll(queryParts ...any) ([]any, error) {
 // 根据提供的查询条件查询第一条匹配的记录
 // 参数:
 //   - queryParts: 查询条件部分,可以是条件字符串和参数
+//
 // 返回:
 //   - any: 查询结果对象
 //   - error: 执行错误
@@ -384,6 +389,7 @@ func (qt *PgSQL) Find(queryParts ...any) (any, error) {
 // 根据提供的查询条件统计匹配的记录数
 // 参数:
 //   - queryParts: 查询条件部分,可以是条件字符串和参数
+//
 // 返回:
 //   - int: 记录数量
 //   - error: 执行错误
@@ -430,6 +436,7 @@ func (qt *PgSQL) Count(queryParts ...any) (int, error) {
 // 参数:
 //   - destType: 目标类型的反射类型
 //   - src: 源值
+//
 // 返回:
 //   - any: 转换后的值
 func autotType(destType reflect.Kind, src any) any {
@@ -462,6 +469,7 @@ func autotType(destType reflect.Kind, src any) any {
 // IsEmpty 检查错误是否由于空结果导致
 // 参数:
 //   - err: 错误对象
+//
 // 返回:
 //   - bool: 如果是空结果错误返回 true,否则返回 false
 func IsEmpty(err error) bool {
@@ -474,6 +482,7 @@ func IsEmpty(err error) bool {
 // getSelectSQL 生成 SELECT 查询语句
 // 参数:
 //   - queryString: WHERE 子句的条件字符串
+//
 // 返回:
 //   - string: 完整的 SELECT SQL 语句
 func (qt *PgSQL) getSelectSQL(queryString string) string {

@@ -1,0 +1,52 @@
+# CI 工作流：根模块多版本测试 + dev 子模块集成回归
+# 注意：dev 模块的集成测试目前是"故意失败的红灯"回归用例（test-dev 会红），
+# 这是预期的临时状态，待用例转绿后 CI 即恢复正常，无需处理。
+name: ci
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  test-root:
+    name: test-root
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: ['1.21', '1.22', '1.23', '1.24']
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go ${{ matrix.go-version }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test -race -count=1 ./...
+
+  test-dev:
+    name: test-dev
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache: true
+          cache-dependency-path: dev/go.sum
+
+      - name: Integration Tests
+        run: go test -count=1 ./integration/...

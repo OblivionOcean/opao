@@ -1,7 +1,6 @@
 # opao
 
 [![GoDoc](https://pkg.go.dev/badge/github.com/OblivionOcean/opao)](https://pkg.go.dev/github.com/OblivionOcean/opao)
-[![Go Report Card](https://goreportcard.com/badge/github.com/OblivionOcean/opao)](https://goreportcard.com/report/github.com/OblivionOcean/opao)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 > 一个小巧、简单且高性能的 Go ORM 框架 🌟
@@ -9,6 +8,78 @@
 ## 项目简介
 
 opao 是一款为性能而设计的轻量级 Go 语言 ORM（对象关系映射）框架。它采用了 `unsafe` + `cache` 的优化策略，在保证类型安全和线程安全的前提下，实现了卓越的数据库操作性能。
+
+## 主要功能
+
+- [x] **基础查询操作** - 单条记录查询、多条记录查询
+- [x] **数据统计** - 记录总数统计
+- [x] **数据更新** - 单字段、多字段更新
+- [x] **数据删除** - 条件删除、批量删除
+- [x] **数据插入** - 单条插入、批量插入
+- [ ] 覆盖查询 - Upsert 操作
+- [x] **查询条件生成** - 支持多种条件组合
+- [x] **多数据库支持** - MySQL、PostgreSQL、SQLite3
+- [x] **事务支持** - `db.Session(tx)` 注入事务；`WithContext` 透传 context
+- [x] **GORM 风格链式查询** - `db.Model(&T{}).Where(...).Find(...)`
+- [x] **GORM 模型迁移映射** - `RegisterSnake` 兼容 `gorm:` 标签与蛇形命名回退
+- [x] **复用外部连接池** - `FromSQLDB` 与既有数据层共存
+- [ ] 自动创建数据表
+- [ ] 主从数据库支持
+- [ ] 高级 SQL 功能（JOIN、子查询等）
+- [ ] 数据库迁移工具
+
+## 性能
+
+与 GORM 及官方代码生成方案 GORM-Gen 同机同模型实测（构建组 DryRun；往返组 SQLite 内存库、同引擎 mattn）：
+
+### 纯 SQL 构建
+
+| 语句 | opao | GORM | GORM-Gen | vs Gen |
+| ------ | ------ | ------ | ---------- | -------- |
+| Create | **89ns / 1 alloc** | 7863ns / 61 | 8385ns / 68 | **94x** |
+| Update | **154ns / 1 alloc** | 9362ns / 75 | 9831ns / 71 | **64x** |
+| Delete | **159ns / 5 allocs** | 7611ns / 59 | 10399ns / 70 | **65x** |
+
+### 真实往返（SQLite 内存库）
+
+| 语句 | opao | GORM | GORM-Gen | vs Gen |
+| ------ | ------ | ------ | ---------- | -------- |
+| Find 单条 | **7.0µs** | 14.6µs | 13.3µs | 1.9x |
+| FindAll 条件(50 行) | **32.9µs** | 45.6µs | 47.2µs | 1.4x |
+| Count | **7.0µs** | 9.6µs | 12.2µs | 1.7x |
+| Create 往返 | **5.3µs** | 22.3µs | 24.7µs | 4.7x |
+
+> 复现：`cd dev/benchmarks && go test -bench=. -benchmem ./...`（方法学与引擎对齐说明见该目录 README；Gen 侧为生成代码直调，含 WithContext 与字段表达式开销）
+
+### 完整数据
+```shell
+> cd dev/benchmarks && go test -run '^$' -bench 'Benchmark[AB]_' -benchtime=2s -benchmem .
+goos: linux
+goarch: amd64
+pkg: github.com/OblivionOcean/opao/dev/benchmarks
+cpu: 11th Gen Intel(R) Core(TM) i5-11300H @ 3.10GHz
+BenchmarkA_Create_Opao-8              28416058         88.62 ns/op       16 B/op        1 allocs/op
+BenchmarkA_Create_Gorm-8                324032       7863 ns/op     4683 B/op       61 allocs/op
+BenchmarkA_Update_Opao-8              16636620        153.5 ns/op       16 B/op        1 allocs/op
+BenchmarkA_Update_Gorm-8                243237       9362 ns/op     6107 B/op       75 allocs/op
+BenchmarkA_Delete_Opao-8              18054232        158.8 ns/op      148 B/op        5 allocs/op
+BenchmarkA_Delete_Gorm-8                330451       7611 ns/op     5115 B/op       59 allocs/op
+BenchmarkB_Find_Opao-8                  338008       7036 ns/op      928 B/op       33 allocs/op
+BenchmarkB_Find_Gorm-8                  161755      14578 ns/op     4514 B/op       74 allocs/op
+BenchmarkB_FindAllCond_Opao-8            71437      32865 ns/op     4248 B/op      151 allocs/op
+BenchmarkB_FindAllCond_Gorm-8            50883      45602 ns/op     6473 B/op      250 allocs/op
+BenchmarkB_Count_Opao-8                 344094       7028 ns/op      752 B/op       21 allocs/op
+BenchmarkB_Count_Gorm-8                 245964       9611 ns/op     3080 B/op       41 allocs/op
+BenchmarkB_Create_Roundtrip_Opao-8      462164       5286 ns/op      808 B/op       16 allocs/op
+BenchmarkB_Create_Roundtrip_Gorm-8      110958      22306 ns/op     5667 B/op       85 allocs/op
+BenchmarkA_Create_Gen-8                 250809       8385 ns/op     5691 B/op       68 allocs/op
+BenchmarkA_Update_Gen-8                 244675       9831 ns/op     6924 B/op       71 allocs/op
+BenchmarkA_Delete_Gen-8                 263968      10399 ns/op     6420 B/op       70 allocs/op
+BenchmarkB_Find_Gen-8                   160780      13337 ns/op     4519 B/op       64 allocs/op
+BenchmarkB_FindAllCond_Gen-8             49344      47216 ns/op     8606 B/op      264 allocs/op
+BenchmarkB_Count_Gen-8                  205082      12156 ns/op     6008 B/op       56 allocs/op
+BenchmarkB_Create_Roundtrip_Gen-8       103322      24676 ns/op     6662 B/op       95 allocs/op
+```
 
 ### 设计理念
 
@@ -18,28 +89,11 @@ opao 是一款为性能而设计的轻量级 Go 语言 ORM（对象关系映射�
 - **简单易用**：简洁的 API 设计，快速上手
 - **零依赖**：无外部依赖，仅需引入对应的数据库驱动
 
-## 主要功能
-
-- [x] **基础查询操作** - 单条记录查询、多条记录查询
-- [x] **数据统计** - 记录总数统计
-- [x] **数据更新** - 单字段、多字段更新
-- [x] **数据删除** - 条件删除、批量删除
-- [x] **数据插入** - 单条插入、批量插入
-- [x] **覆盖查询** - Upsert 操作
-- [x] **查询条件生成** - 支持多种条件组合
-- [x] **多数据库支持** - MySQL、PostgreSQL、SQLite3
-- [ ] 自动创建数据表
-- [ ] 主从数据库支持
-- [ ] 高级 SQL 功能（JOIN、子查询等）
-- [ ] 数据库迁移工具
-- [ ] 连接池管理增强
-- [ ] 查询结果缓存
-
 ## 安装指南
 
 ### 环境要求
 
-- Go 1.20 或更高版本
+- Go 1.21 或更高版本
 - 操作系统：Linux、macOS、Windows
 
 ### 安装步骤
@@ -59,8 +113,8 @@ go get github.com/go-sql-driver/mysql
 # PostgreSQL 驱动
 go get github.com/lib/pq
 
-# SQLite3 驱动
-go get github.com/mattn/go-sqlite3
+# SQLite3 驱动（纯 Go）
+go get modernc.org/sqlite
 ```
 
 ## 使用说明
@@ -77,13 +131,13 @@ import (
 )
 
 type User struct {
-    Id   int64  `db:"id"`
+    Id   int64  `db:"id" option:"autoIncrement"`
     Name string `db:"name"`
     Age  int    `db:"age"`
-    // 支持未导出字段
-    hi   string `db:"hi"`
 }
 ```
+
+兼容存量 GORM 模型：字段可改用 `gorm:"..."` 标签或省略标签由蛇形命名推断，用 `RegisterSnake` 注册即可。
 
 #### 2. 初始化数据库连接
 
@@ -98,8 +152,8 @@ defer db.Close()
 // PostgreSQL 示例
 db, err := opao.New("postgres", "user=postgres password=123456 dbname=test host=127.0.0.1 port=5432 sslmode=disable")
 
-// SQLite3 示例
-db, err := opao.New("sqlite3", "./test.db")
+// SQLite3 示例（modernc.org/sqlite 注册名 "sqlite"；mattn 为 "sqlite3"）
+db, err := opao.New("sqlite", "./test.db")
 ```
 
 #### 3. 注册模型
@@ -123,8 +177,8 @@ user := &User{
 // 创建 ORM 对象
 objOrm := db.Load(user)
 
-// 插入数据
-err = objOrm.Create(user)
+// 插入数据，自增主键自动回填
+err = objOrm.Create()
 if err != nil {
     panic(err)
 }
@@ -138,16 +192,15 @@ user := &User{}
 objOrm := db.Load(user)
 
 // 使用主键查询
-err = objOrm.Find("id = ?", 1)
+v, err := objOrm.Find("id = ?", 1)
 if err != nil {
     panic(err)
 }
 
 // 使用条件查询
-err = objOrm.Find("name = ?", "张三")
+_, err = objOrm.Find("name = ?", "张三")
 
 // 查询所有记录
-var users []*User
 results, err := objOrm.FindAll("age > ?", 18)
 for _, v := range results {
     user := v.(*User)
@@ -161,14 +214,14 @@ for _, v := range results {
 user := &User{Id: 1, Name: "李四"}
 objOrm := db.Load(user)
 
-// 更新所有字段
-err = objOrm.Update()
+// 按条件更新非零值字段（必须携带条件，否则返回 ErrMissingWhereClause）
+err = objOrm.Update("id = ?", user.Id)
 
-// 更新指定字段
-err = objOrm.Update("name = ?, age = ?", "王五", 30)
+// Save 更新全部非自增字段(含零值)
+err = objOrm.Save("id = ?", user.Id)
 
-// 使用条件更新
-err = objOrm.Update("id = ?", 1)
+// 显式放行全表更新（慎用）
+err = objOrm.Update(opao.AllowAll())
 ```
 
 ### 删除数据
@@ -177,8 +230,8 @@ err = objOrm.Update("id = ?", 1)
 user := &User{}
 objOrm := db.Load(user)
 
-// 删除指定条件的数据
-err = objOrm.Delete("id = ?", 1)
+// 按条件删除（必须携带条件，否则返回 ErrMissingWhereClause）
+err := objOrm.Delete("id = ?", 1)
 
 // 批量删除
 err = objOrm.Delete("age < ?", 18)
@@ -190,12 +243,38 @@ err = objOrm.Delete("age < ?", 18)
 user := &User{}
 objOrm := db.Load(user)
 
-// 统计总数
-count, err := objOrm.Count()
-
 // 条件统计
 count, err := objOrm.Count("age > ?", 18)
 fmt.Printf("符合条件的记录数: %d\n", count)
+```
+
+### 链式查询（GORM 风格）
+
+```go
+users, err := db.Model(&User{}).
+    Where(opao.Gt("age", 18)).
+    Order("-id").
+    Limit(10).
+    FindAll()
+```
+
+### 事务
+
+```go
+tx, err := db.Conn.Begin()
+if err != nil {
+    panic(err)
+}
+defer tx.Rollback() // 提交前回滚是安全默认
+
+s := db.Session(tx)      // 该视图上的所有操作走 tx
+u := &User{Name: "王五"}
+if err := s.Load(u).Create(); err != nil {
+    panic(err)
+}
+_ = s.Load(&User{}).Delete("id = ?", 1)
+
+err = tx.Commit()
 ```
 
 ## 查询条件
@@ -209,9 +288,6 @@ import (
 
 // 等于
 Eq("name", "张三")
-
-// 不等于
-NotEq("name", "张三")
 
 // 大于
 Gt("age", 18)
@@ -300,16 +376,13 @@ opao 使用 `db` 标签来映射结构体字段到数据库列：
 
 ```go
 type User struct {
-    Id      int64  `db:"id"`
+    Id      int64  `db:"id" option:"autoIncrement"` // 自增主键
     Name    string `db:"name"`
     Age     int    `db:"age"`
     Created int64  `db:"created_time"`
     Email   string `db:"email"`
     Status  string `db:"status"`
-
-    // 使用 option 标签配置额外选项
-    Id      int64  `db:"id" option:"autoIncrement"` // 自增主键
-    Private string `db:"-"`                          // 忽略该字段
+    Private string `db:"-"` // 忽略该字段
 }
 ```
 
@@ -317,55 +390,6 @@ type User struct {
 
 - `autoIncrement` - 标记为自增字段
 - `-` - 忽略该字段（与 db 标签连用）
-
-## 性能基准测试
-
-### 测试环境
-
-- 操作系统：Linux
-- 架构：amd64
-- CPU：11th Gen Intel(R) Core(TM) i5-11300H @ 3.10GHz
-- Go 版本：1.21+
-
-### 基准测试结果
-
-> **说明**：本测试仅测量 SQL 语句生成的性能，不涉及实际数据库交互。测试结果不作为生产环境参考值。参与测试的 Gorm 为 v1.31.1 版本。
-
-```bash
-go test -benchmem -bench=^Benchmark -v -cpuprofile=./cpu.pprof
-
-=== RUN   TestMysql
---- PASS: TestMysql (0.00s)
-=== RUN   TestPgSql
---- PASS: TestPgSql (0.00s)
-
-goos: linux
-goarch: amd64
-pkg: github.com/OblivionOcean/opao
-cpu: 11th Gen Intel(R) Core(TM) i5-11300H @ 3.10GHz
-
-BenchmarkOpaoRegObj-8        2681996    445.6 ns/op    448 B/op    5 allocs/op
-BenchmarkOpaoLoadObj-8      11621361     99.50 ns/op    144 B/op    2 allocs/op
-BenchmarkOpaoUpdateObj-8    11765991    101.5 ns/op      96 B/op    2 allocs/op
-BenchmarkOpaoSaveObj-8     11492600    100.7 ns/op      96 B/op    2 allocs/op
-BenchmarkGormSave-8           74766  15450 ns/op      7534 B/op   92 allocs/op
-BenchmarkGormUpdate-8       165680   6935 ns/op      4491 B/op   54 allocs/op
-BenchmarkGormRegObj-8        17763  67401 ns/op     35726 B/op  591 allocs/op
-BenchmarkGormLoadObj-8     5153940    232.6 ns/op      704 B/op    4 allocs/op
-
-PASS
-ok      github.com/OblivionOcean/opao   11.530s
-```
-
-### 性能优势
-
-从基准测试可以看出，opao 在各项指标上均显著优于 Gorm：
-
-- **注册性能**：约 151 倍于 Gorm
-- **加载性能**：约 2.3 倍于 Gorm
-- **更新性能**：约 68 倍于 Gorm
-- **保存性能**：约 153 倍于 Gorm
-- **内存分配**：显著更少的内存分配
 
 ## 依赖项
 
@@ -375,30 +399,35 @@ opao 本身零外部依赖，只需安装对应数据库驱动：
 |--------|--------|----------|
 | MySQL | [go-sql-driver/mysql](https://github.com/go-sql-driver/mysql) | `go get github.com/go-sql-driver/mysql` |
 | PostgreSQL | [lib/pq](https://github.com/lib/pq) | `go get github.com/lib/pq` |
-| SQLite3 | [mattn/go-sqlite3](https://github.com/mattn/go-sqlite3) | `go get github.com/mattn/go-sqlite3` |
+| SQLite3 | [modernc.org/sqlite](https://pkg.go.dev/modernc.org/sqlite)（纯 Go）| `go get modernc.org/sqlite` |
 
 ## 项目结构
 
 ```
 opao/
-├── condition.go          # 查询条件构建函数
-├── db.go                 # 数据库连接管理
-├── db_test.go            # 基准测试
-├── internal/              # 内部工具包
-│   └── runtime/          # 运行时反射相关
-├── support/              # ORM 核心实现
-│   ├── condition.go      # 条件定义
-│   ├── elem.go           # 元素操作
-│   ├── orm.go            # ORM 接口实现
-│   ├── mysql/            # MySQL 支持
-│   ├── pg/               # PostgreSQL 支持
-│   ├── sqlite/           # SQLite 支持
-│   └── utils/            # 工具函数
-├── utils/                # 通用工具
-├── go.mod                # Go 模块定义
-├── go.sum                # 依赖版本锁定
-├── LICENSE               # Apache 2.0 许可证
-└── README.md             # 项目文档
+├── condition.go            # 查询条件构建函数
+├── db.go                   # 数据库连接管理与入口
+├── query.go                # 链式查询（GORM 风格糖层）
+├── internal/runtime/       # 运行时反射加速（含布局自检）
+├── support/                # ORM 核心实现
+│   ├── builder.go          # 共享 SQL 构建
+│   ├── condition.go        # 条件渲染
+│   ├── driver.go           # 共享 Driver 核心
+│   ├── errors.go           # 哨兵错误
+│   ├── exec.go             # 执行器抽象
+│   ├── intern.go           # 语句/条件缓存
+│   ├── orm.go              # Register/Load/SafeCache
+│   ├── tags.go             # gorm 标签迁移映射
+│   ├── mysql/              # MySQL 方言 + 驱动包装
+│   ├── pg/                 # PostgreSQL 方言 + 驱动包装
+│   └── sqlite/             # SQLite 方言 + 驱动包装
+├── utils/                  # 通用工具
+├── dev/                    # 测试与基准（嵌套模块）
+│   ├── integration/        # 集成测试
+│   └── benchmarks/         # 性能基准
+├── go.mod
+├── LICENSE                 # Apache 2.0 许可证
+└── README.md               # 项目文档
 ```
 
 ## 贡献指南
@@ -441,7 +470,7 @@ cd opao
 go test ./...
 
 # 运行基准测试
-go test -bench=. -benchmem
+cd dev/benchmarks && go test -bench=. -benchmem ./...
 
 # 运行代码检查
 go vet ./...
@@ -491,29 +520,21 @@ A: 目前支持 MySQL、PostgreSQL 和 SQLite3。未来计划支持更多数据�
 
 ### Q: 如何处理事务？
 
-A: opao 使用标准库 `database/sql`，可以直接使用其事务功能：
+A: 通过 `Session` 将事务注入 ORM 视图：
 
 ```go
-tx, err := db.Conn.Begin()
-if err != nil {
-    panic(err)
-}
+tx, _ := db.Conn.Begin()
 defer tx.Rollback()
 
-// 执行操作
-objOrm := db.Load(&User{})
-// ...
+s := db.Session(tx)
+s.Load(&User{Name: "x"}).Create()
 
-err = tx.Commit()
+tx.Commit()
 ```
 
 ### Q: 是否支持关联查询？
 
-A: 目前暂不支持关联查询（JOIN），这是计划中的功能。您可以使用子查询或多次查询来实现关联数据的获取。
-
-## 致谢
-
-感谢所有为 opao 做出贡献的开发者！
+A: 目前暂不支持关联查询（JOIN）。您可以使用子查询或多次查询来实现关联数据的获取。
 
 ---
 

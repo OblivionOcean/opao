@@ -13,188 +13,140 @@
 // limitations under the License.
 
 package opao_test
-/*
+
 import (
+	"database/sql"
+	"reflect"
 	"testing"
 
-	"github.com/OblivionOcean/opao"
+	"github.com/OblivionOcean/opao/internal/runtime"
 	"github.com/OblivionOcean/opao/support"
-	"github.com/OblivionOcean/opao/support/mysql"
-	_ "github.com/go-sql-driver/mysql"
-	//"gorm.io/driver/sqlite" // 使用SQLite内存数据库进行隔离测试
-	//"gorm.io/gorm"
+	"github.com/OblivionOcean/opao/utils"
 )
 
-//go test -benchmem -bench=^Benchmark -cpuprofile=cpu.pprof -memprofile=mem.pprof
-
-func TestMysql(t *testing.T) {
-	opao.NewDatabase("mysql", "root:123456@tcp(127.0.0.1:3306)/test?charset=utf8mb4&parseTime=True&loc=Local")
+type regUser struct {
+	ID   int64  `db:"id" option:"autoIncrement"`
+	Name string `db:"name"`
+	Age  int    `db:"age"`
+	hide string `db:"-"`
 }
 
-func BenchmarkOpaoRegObj(b *testing.B) {
-	// 测试Obj注册
-	type TestObj struct {
-		ID      int    `db:"id"`
-		Name    string `db:"name"`
-		UserAge int    `db:"user_age"`
-		my      int    `db:"my"`
-	}
-	orm := &support.ORM{}
-	orm.Init(nil, nil)
-	b.ResetTimer() // 重置计时器，排除初始化耗时
-	for i := 0; i < b.N; i++ {
-		orm.Register("test", &TestObj{})
-	}
+// captureDriver 记录 Load 时驱动收到的元数据，用于无数据库验证注册/加载链路
+type captureDriver struct {
+	elems   []support.Elem
+	table   string
+	objType reflect.Type
 }
 
-func BenchmarkOpaoLoadObj(b *testing.B) {
-	type TestObj struct {
-		ID      int    `db:"id"`
-		Name    string `db:"name"`
-		UserAge int    `db:"user_age"`
-		my      int    `db:"my"`
-	}
-	orm := &support.ORM{}
-	orm.Init(nil, mysql.NewMySQL)
-	orm.Register("test", &TestObj{})
-	b.ResetTimer() // 重置计时器，排除初始化耗时
-	for i := 0; i < b.N; i++ {
-		orm.Load(&TestObj{})
-	}
-}
+type stubORM struct{ err error }
 
-func BenchmarkOpaoUpdateObj(b *testing.B) {
-	type TestObj struct {
-		ID      int    `db:"id"`
-		Name    string `db:"name"`
-		UserAge int    `db:"user_age"`
-		my      int    `db:"my"`
-		blob    []byte `db:"blob"`
-	}
+func (s *stubORM) Error() error                       { return s.err }
+func (s *stubORM) Create() error                      { return nil }
+func (s *stubORM) Update(args ...any) error           { return nil }
+func (s *stubORM) Save(args ...any) error             { return nil }
+func (s *stubORM) Delete(args ...any) error           { return nil }
+func (s *stubORM) Find(args ...any) (any, error)      { return nil, nil }
+func (s *stubORM) FindAll(args ...any) ([]any, error) { return nil, nil }
+func (s *stubORM) Count(args ...any) (int, error)     { return 0, nil }
+
+func newCaptureORM() (*support.ORM, *captureDriver) {
+	captured := &captureDriver{}
 	orm := &support.ORM{}
-	orm.Init(nil, mysql.NewMySQL)
-	orm.Register("test", &TestObj{})
-	o := orm.Load(&TestObj{
-		ID: 11,
+	orm.Init(nil, func(_ *sql.DB, obj any, objType reflect.Type, table string, elems []support.Elem, err error) support.ObjectORM {
+		captured.elems, captured.table, captured.objType = elems, table, objType
+		return &stubORM{err: err}
 	})
-	b.ResetTimer() // 重置计时器，排除初始化耗时
-	for i := 0; i < b.N; i++ {
-		o.Update()
+	return orm, captured
+}
+
+func TestRegisterAndLoadMetadata(t *testing.T) {
+	orm, captured := newCaptureORM()
+	if err := orm.Register("user", &regUser{}); err != nil {
+		t.Fatalf("Register 失败: %v", err)
+	}
+	u := &regUser{ID: 1, Name: "张三", Age: 25}
+	o := orm.Load(u)
+	if o.Error() != nil {
+		t.Fatalf("Load 失败: %v", o.Error())
+	}
+
+	if captured.table != "user" || captured.objType != reflect.TypeOf(regUser{}) {
+		t.Fatalf("表名或类型不符: table=%s type=%v", captured.table, captured.objType)
+	}
+	want := map[string]bool{"id": true, "name": true, "age": true}
+	if len(captured.elems) != len(want) {
+		t.Fatalf("字段数不符: got %d (%v)", len(captured.elems), captured.elems)
+	}
+	for _, e := range captured.elems {
+		if !want[e.Tag] {
+			t.Fatalf("意外字段: %s", e.Tag)
+		}
+		if e.Option["autoIncrement"] == "-" && e.Tag != "id" {
+			t.Fatalf("autoIncrement 标记错位: %s", e.Tag)
+		}
 	}
 }
 
-func BenchmarkOpaoSaveObj(b *testing.B) {
-	type TestObj struct {
-		ID      int    `db:"id"`
-		Name    string `db:"name"`
-		UserAge int    `db:"user_age"`
-		my      int    `db:"my"`
-		blob    []byte `db:"blob"`
+func TestLoadUnregisteredObject(t *testing.T) {
+	orm, _ := newCaptureORM()
+	type Other struct {
+		X int `db:"x"`
 	}
-	orm := &support.ORM{}
-	orm.Init(nil, mysql.NewMySQL)
-	orm.Register("test", &TestObj{})
-	o := orm.Load(&TestObj{
-		ID: 11,
-	})
-	b.ResetTimer() // 重置计时器，排除初始化耗时
-	for i := 0; i < b.N; i++ {
-		o.Update()
+	o := orm.Load(&Other{})
+	if o.Error() == nil {
+		t.Fatal("未注册对象应当返回错误")
 	}
 }
 
-func TestPgSql(t *testing.T) {
-	type TestObj struct {
-		ID      int    `db:"id"`
-		Name    string `db:"name"`
-		UserAge int    `db:"user_age"`
-		my      int    `db:"my"`
+func TestLoadNonPointerRejected(t *testing.T) {
+	orm, _ := newCaptureORM()
+	if err := orm.Register("user", &regUser{}); err != nil {
+		t.Fatal(err)
 	}
-	orm := &support.ORM{}
-	orm.Init(nil, mysql.NewMySQL)
-	orm.Register("test", &TestObj{})
-	tmp := orm.Load(&TestObj{})
-	tmp.Update("\"url\" = ?", "")
-}
-
-/*
-
-func BenchmarkGormSave(b *testing.B) {
-	// 初始化GORM连接，这里使用SQLite内存模式避免网络开销
-	db, _ := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	db.Session(&gorm.Session{DryRun: true})
-	// 定义您的模型，结构需要与您的SQL示例匹配
-	type Test struct {
-		ID      uint
-		Name    string
-		UserAge int
-		My      string
-	}
-	db.AutoMigrate(&Test{}) // 创建表结构
-	t := &Test{}
-	b.ResetTimer() // 重置计时器，排除初始化耗时
-	for i := 0; i < b.N; i++ {
-		// 此操作包含了SQL生成、驱动处理等，但主要在内存中完成，可近似看作生成耗时
-		db.Model(t).Where("").Save(t)
+	o := orm.Load(regUser{})
+	if o.Error() == nil {
+		t.Fatal("非指针对象应当返回错误")
 	}
 }
 
-func BenchmarkGormUpdate(b *testing.B) {
-	// 初始化GORM连接，这里使用SQLite内存模式避免网络开销
-	db, _ := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	db.Session(&gorm.Session{DryRun: true})
-	// 定义您的模型，结构需要与您的SQL示例匹配
-	type Test struct {
-		ID      uint
-		Name    string
-		UserAge int
-		My      string
+func TestRuntimeGetTag(t *testing.T) {
+	type probe struct {
+		Name string `db:"user_name" option:"autoIncrement"`
+		Age  int
 	}
-	db.AutoMigrate(&Test{}) // 创建表结构
-	t := &Test{
-		ID: 14,
+	st := runtime.Type2StructType(reflect.TypeOf(probe{}))
+	if st == nil {
+		t.Fatal("Type2StructType 返回 nil")
 	}
-	b.ResetTimer() // 重置计时器，排除初始化耗时
-	for i := 0; i < b.N; i++ {
-		// 此操作包含了SQL生成、驱动处理等，但主要在内存中完成，可近似看作生成耗时
-		db.Model(t).Where("").UpdateColumns(t)
+	var f reflect.StructField
+	if !runtime.GetField(&f, st, 0) {
+		t.Fatal("GetField 失败")
 	}
-}
-
-
-func BenchmarkGormRegObj(b *testing.B) {
-	db, _ := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	db.Session(&gorm.Session{DryRun: true})
-	// 定义您的模型，结构需要与您的SQL示例匹配
-	type Test struct {
-		ID      uint
-		Name    string
-		UserAge int
-		My      string
+	if f.Name != "Name" {
+		t.Fatalf("字段名不符: %s", f.Name)
 	}
-	b.ResetTimer() // 重置计时器，排除初始化耗时
-	for i := 0; i < b.N; i++ {
-		db.AutoMigrate(&Test{}) // 创建表结构
+	tag, ok := runtime.GetTag(f.Tag, "db")
+	if !ok || tag != "user_name" {
+		t.Fatalf("db 标签解析错误: %q %v", tag, ok)
+	}
+	opt, ok := runtime.GetTag(f.Tag, "option")
+	if !ok || opt != "autoIncrement" {
+		t.Fatalf("option 标签解析错误: %q %v", opt, ok)
+	}
+	if _, ok := runtime.GetTag(f.Tag, "json"); ok {
+		t.Fatal("不存在的标签不应返回 ok")
 	}
 }
 
-func BenchmarkGormLoadObj(b *testing.B) {
-	// 初始化GORM连接，这里使用SQLite内存模式避免网络开销
-	db, _ := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	db.Session(&gorm.Session{DryRun: true})
-	// 定义您的模型，结构需要与您的SQL示例匹配
-	type Test struct {
-		ID      uint
-		Name    string
-		UserAge int
-		My      string
+func TestBufferTruncateLastAndString(t *testing.T) {
+	b := utils.NewBuffer(16)
+	b.WriteString("a,b,")
+	b.TruncateLast(1)
+	if got := b.String(); got != "a,b" {
+		t.Fatalf("TruncateLast 结果错误: %q", got)
 	}
-	db.AutoMigrate(&Test{}) // 创建表结构
-	t := &Test{}
-	b.ResetTimer() // 重置计时器，排除初始化耗时
-	for i := 0; i < b.N; i++ {
-		// 此操作包含了SQL生成、驱动处理等，但主要在内存中完成，可近似看作生成耗时
-		db.Model(t)
+	b.TruncateLast(99) // 超长截断应为安全 no-op
+	if b.String() != "a,b" {
+		t.Fatalf("超长截断不应破坏内容: %q", b.String())
 	}
 }
-*/

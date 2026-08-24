@@ -36,8 +36,6 @@ type structField struct {
 }
 
 // GetField 获取反射类型的结构体字段
-//
-//go:inline
 func GetField(sf *reflect.StructField, st *structType, i int) bool {
 	if st == nil || i < 0 || i >= len(st.Fields) {
 		return false
@@ -47,6 +45,8 @@ func GetField(sf *reflect.StructField, st *structType, i int) bool {
 	sf.Type = toType(stf.Typ)
 	sf.Offset = stf.Offset
 	sf.Anonymous = stf.Name.IsEmbedded()
+	// 必须先清空：无标签字段的 StructField 不能残留上一字段的标签
+	sf.Tag = ""
 	if tag := stf.Name.Tag(); tag != "" {
 		sf.Tag = reflect.StructTag(tag)
 	}
@@ -67,16 +67,33 @@ func RType2Type(t *rtype) reflect.Type {
 	return toType(t)
 }
 
+// TypeFieldLen 获取结构体类型的字段数量
+//
 //go:inline
 func TypeFieldLen(st *structType) int {
 	return len(st.Fields)
 }
 
+// ifacePtr 接口值的两字表示：类型字 + 数据字。
+// 该布局是运行时与 cgo 共同依赖的基础表示。
+type ifacePtr struct {
+	typ, data unsafe.Pointer
+}
+
+// Type2StructType 将 reflect.Type 转换为内部结构体类型描述。
+// 依赖 Go 私有布局（abiTypeSize 偏移），跨版本兼容性由 Register
+// 入口的启动自检（verifyRuntimeLayout）兜底。
+//
+//go:inline
 func Type2StructType(t reflect.Type) *structType {
 	if t.Kind() != reflect.Struct {
 		return nil
 	}
-	return (*structType)(unsafe.Pointer((*[2]uintptr)(unsafe.Pointer(&t))[1] + abiTypeSize))
+	data := (*ifacePtr)(unsafe.Pointer(&t)).data
+	if data == nil {
+		return nil
+	}
+	return (*structType)(unsafe.Add(data, abiTypeSize))
 }
 
 func GetTag(tag reflect.StructTag, key string) (value string, ok bool) {

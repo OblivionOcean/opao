@@ -28,8 +28,10 @@ func (b *Buffer) WriteString(s string) {
 	*b = append(*b, s...)
 }
 
-func (b *Buffer) WriteByte(c byte) {
+// WriteByte 追加单个字节。为满足 io.ByteWriter 语义返回 error，恒为 nil。
+func (b *Buffer) WriteByte(c byte) error {
 	*b = append(*b, c)
+	return nil
 }
 
 func (b Buffer) String() string {

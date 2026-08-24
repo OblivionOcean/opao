@@ -1,5 +1,8 @@
 .vscode/
 .idea/
 .code/
+.marscode/
 *.pprof
 *.exe
+*.test
+*.out

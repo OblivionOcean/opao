@@ -263,19 +263,9 @@ func ToBytes(src any) []byte {
 	return nil
 }
 
-func AutotAnyI64tAnyI(Val any) any {
-	switch Val.(type) {
-	case int64:
-		return int(Val.(int64))
-	case uint64:
-		return uint(Val.(uint64))
-	}
-	// 默认情况下返回零值
-	return Val
-}
-
 func Used(...any) {}
 
+//go:inline
 func GetSlicesSize(slice [][]byte) int {
 	sliceLength := len(slice)
 	size := 0

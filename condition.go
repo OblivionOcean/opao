@@ -163,15 +163,14 @@ func NotInValues(field string, values []any) support.Condition {
 }
 func Limit(limit int) support.Condition {
 	return support.Condition{
-		Type:  support.LIMIT,
-		Right: limit,
+		Type: support.LIMIT,
+		Args: []any{limit},
 	}
 }
 func LimitOffset(limit, offset int) support.Condition {
 	return support.Condition{
-		Type:  support.LIMIT,
-		Left:  limit,
-		Right: offset,
+		Type: support.LIMIT,
+		Args: []any{limit, offset},
 	}
 }
 func Custom(condition string, args ...any) support.Condition {

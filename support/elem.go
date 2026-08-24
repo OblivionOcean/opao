@@ -32,6 +32,10 @@ type Elem struct {
 	Ptr    unsafe.Pointer
 	Offset uintptr
 	Option map[string]string
+
+	// AutoInc 预计算的自增标记：热路径避免反复读取 Option map。
+	// 由 Register 写入；与 Option["autoIncrement"]=="-" 语义一致。
+	AutoInc bool
 }
 
 type Cache struct {
@@ -90,7 +94,7 @@ func (elem *Elem) Get() any {
 }
 
 func (elem *Elem) Set(val any) error {
-	if elem.Type != reflect.TypeOf(val) {
+	if val == nil || elem.Type != reflect.TypeOf(val) {
 		return errors.New("type mismatch")
 	}
 	ptr := elem.Ptr
@@ -99,45 +103,36 @@ func (elem *Elem) Set(val any) error {
 		*(*bool)(ptr) = val.(bool)
 	case reflect.Int:
 		*(*int)(ptr) = val.(int)
-	case reflect.String:
-		*(*string)(ptr) = val.(string)
-	case reflect.Uint:
-		*(*uint)(ptr) = val.(uint)
-	case reflect.Float64:
-		*(*float64)(ptr) = val.(float64)
-	case reflect.Float32:
-		*(*float32)(ptr) = val.(float32)
-	case reflect.Uint64:
-		*(*uint64)(ptr) = val.(uint64)
-	case reflect.Uint32:
-		*(*uint32)(ptr) = val.(uint32)
-	case reflect.Uint16:
-		*(*uint16)(ptr) = val.(uint16)
-	case reflect.Uint8:
-		*(*uint8)(ptr) = val.(uint8)
-	case reflect.Int64:
-		*(*int64)(ptr) = val.(int64)
-	case reflect.Int32:
-		*(*int32)(ptr) = val.(int32)
-	case reflect.Int16:
-		*(*int16)(ptr) = val.(int16)
 	case reflect.Int8:
 		*(*int8)(ptr) = val.(int8)
-	case reflect.Complex64:
-		*(*complex64)(ptr) = val.(complex64)
-	case reflect.Complex128:
-		*(*complex128)(ptr) = val.(complex128)
-	case reflect.Uintptr:
-		*(*uintptr)(ptr) = val.(uintptr)
+	case reflect.Int16:
+		*(*int16)(ptr) = val.(int16)
+	case reflect.Int32:
+		*(*int32)(ptr) = val.(int32)
+	case reflect.Int64:
+		*(*int64)(ptr) = val.(int64)
+	case reflect.Uint:
+		*(*uint)(ptr) = val.(uint)
+	case reflect.Uint8:
+		*(*uint8)(ptr) = val.(uint8)
+	case reflect.Uint16:
+		*(*uint16)(ptr) = val.(uint16)
+	case reflect.Uint32:
+		*(*uint32)(ptr) = val.(uint32)
+	case reflect.Uint64:
+		*(*uint64)(ptr) = val.(uint64)
+	case reflect.Float32:
+		*(*float32)(ptr) = val.(float32)
+	case reflect.Float64:
+		*(*float64)(ptr) = val.(float64)
+	case reflect.String:
+		*(*string)(ptr) = val.(string)
 	case reflect.Slice:
 		*(*[]byte)(ptr) = val.([]byte)
+	default:
+		// time.Time 及其他未覆盖类型走反射兜底（仅写一次）
+		reflect.NewAt(elem.Type, ptr).Elem().Set(reflect.ValueOf(val))
 	}
-
-	if reflect.TypeOf((*time.Time)(nil)).Elem() == elem.Type || reflect.TypeOf((*time.Time)(nil)) == elem.Type && (*time.Time)(ptr) != nil {
-		*(*time.Time)(ptr) = val.(time.Time)
-	}
-
-	reflect.NewAt(elem.Type, ptr).Elem().Set(reflect.ValueOf(val))
 	return nil
 }
 

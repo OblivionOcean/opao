@@ -17,7 +17,7 @@ package support
 import (
 	"sync"
 
-	"github.com/OblivionOcean/opao/utils"
+	"github.com/OblivionOcean/opao/v2/utils"
 )
 
 // 热路径对象池：驱动层在 Exec 完成后归还，消除稳态分配。

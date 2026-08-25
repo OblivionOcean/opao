@@ -11,9 +11,9 @@ import (
 
 	_ "modernc.org/sqlite" // 注册名为 "sqlite" 的纯 Go database/sql 驱动（opao 侧使用）
 
-	"github.com/OblivionOcean/opao"
-	"github.com/OblivionOcean/opao/support"
-	"github.com/OblivionOcean/opao/support/mysql"
+	"github.com/OblivionOcean/opao/v2"
+	"github.com/OblivionOcean/opao/v2/support"
+	"github.com/OblivionOcean/opao/v2/support/mysql"
 )
 
 // 统一模型：两侧映射同一张 users 表、同样的列。

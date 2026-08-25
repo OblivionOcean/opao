@@ -19,7 +19,7 @@ import (
 
 	_ "modernc.org/sqlite" // 注册名为 "sqlite" 的纯 Go 驱动（test-only 依赖）
 
-	"github.com/OblivionOcean/opao"
+	"github.com/OblivionOcean/opao/v2"
 )
 
 // TestSQLiteCRUDRoundtrip 使用真实 SQLite（modernc.org 纯 Go 驱动，test-only 依赖）

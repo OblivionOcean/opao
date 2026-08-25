@@ -1,9 +1,9 @@
-module github.com/OblivionOcean/opao/dev/benchmarks
+module github.com/OblivionOcean/opao/v2/dev/benchmarks
 
 go 1.25.0
 
 require (
-	github.com/OblivionOcean/opao v0.0.0
+	github.com/OblivionOcean/opao/v2 v0.0.0
 	github.com/mattn/go-sqlite3 v1.14.22
 	gorm.io/driver/sqlite v1.5.7
 	gorm.io/gen v0.3.28
@@ -40,4 +40,4 @@ require (
 	modernc.org/token v1.1.0 // indirect
 )
 
-replace github.com/OblivionOcean/opao => ../../
+replace github.com/OblivionOcean/opao/v2 => ../../

@@ -6,7 +6,7 @@ import (
 	"gorm.io/gen"
 	"gorm.io/gorm"
 
-	"github.com/OblivionOcean/opao/dev/benchmarks/model"
+	"github.com/OblivionOcean/opao/v2/dev/benchmarks/model"
 )
 
 func main() {

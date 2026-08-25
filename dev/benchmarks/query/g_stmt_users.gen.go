@@ -7,7 +7,7 @@ package query
 import (
 	"context"
 
-	"github.com/OblivionOcean/opao/dev/benchmarks/model"
+	"github.com/OblivionOcean/opao/v2/dev/benchmarks/model"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"gorm.io/gorm/schema"

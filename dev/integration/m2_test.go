@@ -21,9 +21,9 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"github.com/OblivionOcean/opao"
-	"github.com/OblivionOcean/opao/support"
-	"github.com/OblivionOcean/opao/support/sqlite"
+	"github.com/OblivionOcean/opao/v2"
+	"github.com/OblivionOcean/opao/v2/support"
+	"github.com/OblivionOcean/opao/v2/support/sqlite"
 )
 
 // newM2DB 创建 M2 场景专用的 sqlite 内存库（每用例独立 DSN 隔离数据）

@@ -7,17 +7,18 @@ package benchmarks
 import (
 	"context"
 	"database/sql"
-	"github.com/OblivionOcean/opao/dev/benchmarks/model"
-	"github.com/OblivionOcean/opao/dev/benchmarks/query"
 	"testing"
+
+	"github.com/OblivionOcean/opao/v2/dev/benchmarks/model"
+	"github.com/OblivionOcean/opao/v2/dev/benchmarks/query"
 
 	_ "github.com/mattn/go-sqlite3" // 裸基准用：注册名 "sqlite3"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
-	"github.com/OblivionOcean/opao"
-	"github.com/OblivionOcean/opao/support"
-	"github.com/OblivionOcean/opao/support/mysql"
+	"github.com/OblivionOcean/opao/v2"
+	"github.com/OblivionOcean/opao/v2/support"
+	"github.com/OblivionOcean/opao/v2/support/mysql"
 )
 
 type stmtUser struct {

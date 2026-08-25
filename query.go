@@ -24,10 +24,10 @@ import (
 	"strings"
 	"unsafe"
 
-	"github.com/OblivionOcean/opao/support"
-	"github.com/OblivionOcean/opao/support/mysql"
-	"github.com/OblivionOcean/opao/support/pg"
-	"github.com/OblivionOcean/opao/support/sqlite"
+	"github.com/OblivionOcean/opao/v2/support"
+	"github.com/OblivionOcean/opao/v2/support/mysql"
+	"github.com/OblivionOcean/opao/v2/support/pg"
+	"github.com/OblivionOcean/opao/v2/support/sqlite"
 )
 
 // errSelectNotSupported 是链式糖层的明确功能边界（非缺陷）：

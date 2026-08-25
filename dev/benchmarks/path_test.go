@@ -11,9 +11,9 @@ import (
 	"testing"
 	"unsafe"
 
-	"github.com/OblivionOcean/opao"
-	"github.com/OblivionOcean/opao/support"
-	"github.com/OblivionOcean/opao/support/mysql"
+	"github.com/OblivionOcean/opao/v2"
+	"github.com/OblivionOcean/opao/v2/support"
+	"github.com/OblivionOcean/opao/v2/support/mysql"
 )
 
 func TestPathBreakdown(t *testing.T) {

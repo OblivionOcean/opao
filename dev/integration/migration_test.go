@@ -20,7 +20,7 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"github.com/OblivionOcean/opao"
+	"github.com/OblivionOcean/opao/v2"
 )
 
 // GormUser 模拟存量 GORM 项目模型：gorm 标签、无 db 标签、隐式命名

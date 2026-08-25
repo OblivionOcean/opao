@@ -18,7 +18,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/OblivionOcean/opao/internal/runtime"
+	"github.com/OblivionOcean/opao/v2/internal/runtime"
 )
 
 func BenchmarkType(b *testing.B) {

@@ -23,7 +23,7 @@ import (
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 
-	"github.com/OblivionOcean/opao/support"
+	"github.com/OblivionOcean/opao/v2/support"
 )
 
 type User struct {

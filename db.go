@@ -20,10 +20,10 @@ import (
 	"errors"
 	"reflect"
 
-	"github.com/OblivionOcean/opao/support"
-	"github.com/OblivionOcean/opao/support/mysql"
-	"github.com/OblivionOcean/opao/support/pg"
-	"github.com/OblivionOcean/opao/support/sqlite"
+	"github.com/OblivionOcean/opao/v2/support"
+	"github.com/OblivionOcean/opao/v2/support/mysql"
+	"github.com/OblivionOcean/opao/v2/support/pg"
+	"github.com/OblivionOcean/opao/v2/support/sqlite"
 )
 
 const (

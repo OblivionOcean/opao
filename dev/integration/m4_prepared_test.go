@@ -20,7 +20,7 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"github.com/OblivionOcean/opao"
+	"github.com/OblivionOcean/opao/v2"
 )
 
 // newPreparedDB 创建 M4-L3 Prepared Statement 场景专用的 sqlite 内存库

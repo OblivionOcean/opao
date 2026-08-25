@@ -20,7 +20,7 @@ import (
 	"database/sql"
 	"reflect"
 
-	"github.com/OblivionOcean/opao/support"
+	"github.com/OblivionOcean/opao/v2/support"
 )
 
 // SqliteDialect SQLite 方言

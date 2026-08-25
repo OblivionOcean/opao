@@ -19,7 +19,7 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"github.com/OblivionOcean/opao"
+	"github.com/OblivionOcean/opao/v2"
 )
 
 // newM4DB 创建 M4 缓存场景专用的 sqlite 内存库（独立 DSN 隔离数据）

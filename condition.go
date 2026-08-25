@@ -15,7 +15,7 @@
 package opao
 
 import (
-	"github.com/OblivionOcean/opao/support"
+	"github.com/OblivionOcean/opao/v2/support"
 )
 
 // In 创建IN条件

@@ -19,9 +19,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/OblivionOcean/opao/internal/runtime"
-	"github.com/OblivionOcean/opao/support"
-	"github.com/OblivionOcean/opao/utils"
+	"github.com/OblivionOcean/opao/v2/internal/runtime"
+	"github.com/OblivionOcean/opao/v2/support"
+	"github.com/OblivionOcean/opao/v2/utils"
 )
 
 type regUser struct {

@@ -1,4 +1,4 @@
-module github.com/OblivionOcean/opao
+module github.com/OblivionOcean/opao/v2
 
 go 1.21
 

@@ -21,7 +21,7 @@ import (
 
 	"unsafe"
 
-	"github.com/OblivionOcean/opao/utils"
+	"github.com/OblivionOcean/opao/v2/utils"
 )
 
 // BuildQuery 将 variadic 查询参数归一化为 (条件, 原始参数)：

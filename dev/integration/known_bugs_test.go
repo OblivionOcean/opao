@@ -21,10 +21,10 @@ import (
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 
-	"github.com/OblivionOcean/opao"
-	"github.com/OblivionOcean/opao/support"
-	"github.com/OblivionOcean/opao/support/mysql"
-	"github.com/OblivionOcean/opao/support/pg"
+	"github.com/OblivionOcean/opao/v2"
+	"github.com/OblivionOcean/opao/v2/support"
+	"github.com/OblivionOcean/opao/v2/support/mysql"
+	"github.com/OblivionOcean/opao/v2/support/pg"
 )
 
 const (

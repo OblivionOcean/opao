@@ -25,8 +25,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/OblivionOcean/opao/support"
-	"github.com/OblivionOcean/opao/support/sqlite"
+	"github.com/OblivionOcean/opao/v2/support"
+	"github.com/OblivionOcean/opao/v2/support/sqlite"
 )
 
 // ---------- 极简 stub 驱动：捕获 SQL 与参数，避免引入任何外部测试依赖 ----------

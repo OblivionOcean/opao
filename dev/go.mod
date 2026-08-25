@@ -1,10 +1,10 @@
-module github.com/OblivionOcean/opao/dev
+module github.com/OblivionOcean/opao/v2/dev
 
 go 1.21
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
-	github.com/OblivionOcean/opao v0.0.0
+	github.com/OblivionOcean/opao/v2 v0.0.0
 	modernc.org/sqlite v1.34.1
 )
 
@@ -24,4 +24,4 @@ require (
 	modernc.org/token v1.1.0 // indirect
 )
 
-replace github.com/OblivionOcean/opao => ../
+replace github.com/OblivionOcean/opao/v2 => ../

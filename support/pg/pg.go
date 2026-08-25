@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/OblivionOcean/opao/support"
+	"github.com/OblivionOcean/opao/v2/support"
 )
 
 // PgDialect PostgreSQL 方言

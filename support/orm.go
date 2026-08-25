@@ -25,8 +25,8 @@ import (
 	"sync"
 	"unsafe"
 
-	opaort "github.com/OblivionOcean/opao/internal/runtime"
-	"github.com/OblivionOcean/opao/utils"
+	opaort "github.com/OblivionOcean/opao/v2/internal/runtime"
+	"github.com/OblivionOcean/opao/v2/utils"
 )
 
 type ORM struct {

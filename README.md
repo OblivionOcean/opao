@@ -1,6 +1,6 @@
 # opao
 
-[![GoDoc](https://pkg.go.dev/badge/github.com/OblivionOcean/opao)](https://pkg.go.dev/github.com/OblivionOcean/opao)
+[![GoDoc](https://pkg.go.dev/badge/github.com/OblivionOcean/opao/v2)](https://pkg.go.dev/github.com/OblivionOcean/opao/v2)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 > 一个小巧、简单且高性能的 Go ORM 框架 🌟
@@ -56,7 +56,7 @@ opao 是一款为性能而设计的轻量级 Go 语言 ORM（对象关系映射�
 > cd dev/benchmarks && go test -run '^$' -bench 'Benchmark[AB]_' -benchtime=2s -benchmem .
 goos: linux
 goarch: amd64
-pkg: github.com/OblivionOcean/opao/dev/benchmarks
+pkg: github.com/OblivionOcean/opao/v2/dev/benchmarks
 cpu: 11th Gen Intel(R) Core(TM) i5-11300H @ 3.10GHz
 BenchmarkA_Create_Opao-8              28416058         88.62 ns/op       16 B/op        1 allocs/op
 BenchmarkA_Create_Gorm-8                324032       7863 ns/op     4683 B/op       61 allocs/op
@@ -99,7 +99,7 @@ BenchmarkB_Create_Roundtrip_Gen-8       103322      24676 ns/op     6662 B/op   
 ### 安装步骤
 
 ```bash
-go get github.com/OblivionOcean/opao
+go get github.com/OblivionOcean/opao/v2
 ```
 
 ### 安装数据库驱动
@@ -127,7 +127,7 @@ go get modernc.org/sqlite
 package main
 
 import (
-    "github.com/OblivionOcean/opao"
+    "github.com/OblivionOcean/opao/v2"
 )
 
 type User struct {
@@ -283,7 +283,7 @@ opao 提供了丰富的查询条件构建函数：
 
 ```go
 import (
-    "github.com/OblivionOcean/opao"
+    "github.com/OblivionOcean/opao/v2"
 )
 
 // 等于
@@ -463,7 +463,7 @@ opao/
 
 ```bash
 # 克隆仓库
-git clone https://github.com/OblivionOcean/opao.git
+git clone https://github.com/OblivionOcean/opao/v2.git
 cd opao
 
 # 运行测试
@@ -499,9 +499,9 @@ limitations under the License.
 ## 联系方式
 
 - **作者**：OblivionOcean
-- **项目地址**：[https://github.com/OblivionOcean/opao](https://github.com/OblivionOcean/opao)
-- **文档地址**：[https://pkg.go.dev/github.com/OblivionOcean/opao](https://pkg.go.dev/github.com/OblivionOcean/opao)
-- **问题反馈**：[GitHub Issues](https://github.com/OblivionOcean/opao/issues)
+- **项目地址**：[https://github.com/OblivionOcean/opao/v2](https://github.com/OblivionOcean/opao/v2)
+- **文档地址**：[https://pkg.go.dev/github.com/OblivionOcean/opao/v2](https://pkg.go.dev/github.com/OblivionOcean/opao/v2)
+- **问题反馈**：[GitHub Issues](https://github.com/OblivionOcean/opao/v2/issues)
 
 ## 常见问题 (FAQ)
 

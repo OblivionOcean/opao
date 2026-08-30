@@ -138,30 +138,60 @@ func (o *ORM) Register(tableName string, object any) error {
 		if field.Type.Kind() == reflect.Invalid || field.Type.Kind() == reflect.Func || field.Type.Kind() == reflect.Chan || field.Type.Kind() == reflect.UnsafePointer || field.Type.Kind() == reflect.Map || field.Type.Kind() == reflect.Interface || field.Type.Kind() == reflect.Slice || field.Type.Kind() == reflect.Array || field.Type.Kind() == reflect.Ptr || field.Type.Kind() == reflect.Struct {
 			continue
 		}
-		optMap := make(map[string]string, 2)
+		flags := OptionFlag(0)
 		if okOption && option != "" && option != "-" {
 			tmp := utils.SplitStringByByte(option, ';')
 			for j := 0; j < len(tmp); j++ {
 				sepIndex := strings.IndexByte(tmp[j], '=')
 				if sepIndex == -1 {
-					optMap[tmp[j]] = "-"
+					// 无值选项
+					switch tmp[j] {
+					case "autoIncrement":
+						flags |= OptAutoInc
+					case "primaryKey":
+						flags |= OptPrimaryKey
+					case "notNull":
+						flags |= OptNotNull
+					case "unique":
+						flags |= OptUnique
+					case "indexed":
+						flags |= OptIndexed
+					}
 					continue
 				}
 				opt := tmp[j][:sepIndex]
 				val := tmp[j][sepIndex+1:]
-				if opt != "" {
-					optMap[opt] = val
+				switch opt {
+				case "autoIncrement":
+					flags |= OptAutoInc
+				case "primaryKey":
+					flags |= OptPrimaryKey
+				case "notNull":
+					flags |= OptNotNull
+				case "unique":
+					flags |= OptUnique
+				case "indexed":
+					flags |= OptIndexed
+				case "default":
+					if val != "" {
+						flags |= OptHasDefault
+						elems[ei].DefaultValue = val
+					}
 				}
 			}
 		}
-		if optMap["autoIncrement"] == "-" || m.AutoIncrement {
-			optMap["autoIncrement"] = "-"
+		if flags&OptAutoInc != 0 || m.AutoIncrement {
+			flags |= OptAutoInc
 			elems[ei].AutoInc = true
 		}
-		if m.PrimaryKey {
-			optMap["primaryKey"] = "-"
+		if m.PrimaryKey || flags&OptPrimaryKey != 0 {
+			flags |= OptPrimaryKey
+			elems[ei].PrimaryKey = true
 		}
-		elems[ei].Option = optMap
+		if flags&OptNotNull != 0 {
+			elems[ei].NotNull = true
+		}
+		elems[ei].Flags = flags
 		elems[ei].Index = i
 		elems[ei].Type = field.Type
 		elems[ei].Tag = m.Column
@@ -278,4 +308,40 @@ func WriteLii(elems []Elem, r sql.Result) {
 			*(*uint64)(ptr) = uint64(lii)
 		}
 	}
+}
+
+// AutoMigrate 自动迁移：根据已注册的模型生成并执行 CREATE TABLE IF NOT EXISTS 语句。
+// models 参数为要迁移的模型实例（指针），必须已通过 Register 注册。
+func (o *ORM) AutoMigrate(dialect Dialect, conn *sql.DB, models ...any) error {
+	if conn == nil {
+		return fmt.Errorf("opao: 数据库连接不能为空")
+	}
+	if dialect == nil {
+		return fmt.Errorf("opao: 方言不能为空")
+	}
+
+	for _, model := range models {
+		objType := reflect.TypeOf(model)
+		if objType.Kind() == reflect.Ptr {
+			objType = objType.Elem()
+		}
+
+		rawCache, ok := o.caches.Load(objType)
+		if !ok {
+			return fmt.Errorf("opao: 对象 %v 未注册，请先调用 Register", objType)
+		}
+
+		// 创建表语句
+		query, err := dialect.BuildCreateTable(rawCache.Table, rawCache.Elems)
+		if err != nil {
+			return fmt.Errorf("opao: 生成 %s 表的 CREATE TABLE 语句失败: %w", rawCache.Table, err)
+		}
+
+		// 执行创建表
+		if _, err := conn.Exec(query); err != nil {
+			return fmt.Errorf("opao: 创建表 %s 失败: %w", rawCache.Table, err)
+		}
+	}
+
+	return nil
 }

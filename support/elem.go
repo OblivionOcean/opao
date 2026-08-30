@@ -25,17 +25,52 @@ const (
 	flagAddr = 1 << 8
 )
 
+// OptionFlag 位标志类型，用于高效存储字段选项
+type OptionFlag uint64
+
+const (
+	// 字段选项位标志
+	OptAutoInc    OptionFlag = 1 << 0 // 自增
+	OptPrimaryKey OptionFlag = 1 << 1 // 主键
+	OptNotNull    OptionFlag = 1 << 2 // 非空
+	OptUnique     OptionFlag = 1 << 3 // 唯一
+	OptIndexed    OptionFlag = 1 << 4 // 索引
+	OptHasDefault OptionFlag = 1 << 5 // 有默认值
+)
+
 type Elem struct {
 	Index  int
 	Type   reflect.Type
 	Tag    string
 	Ptr    unsafe.Pointer
 	Offset uintptr
-	Option map[string]string
+	Flags  OptionFlag  // 位标志：存储字段选项
+	DefaultValue string // 默认值字符串，空字符串表示无默认值
 
-	// AutoInc 预计算的自增标记：热路径避免反复读取 Option map。
-	// 由 Register 写入；与 Option["autoIncrement"]=="-" 语义一致。
+	// AutoInc 预计算的自增标记：热路径避免反复读取 Flags。
+	// 由 Register 写入；与 Flags&OptAutoInc != 0 语义一致。
 	AutoInc bool
+
+	// PrimaryKey 预计算的主键标记：由 Register 写入。
+	PrimaryKey bool
+
+	// NotNull 预计算的非空标记：由 Register 写入。
+	NotNull bool
+}
+
+// HasFlag 检查是否设置了指定的选项标志
+func (e *Elem) HasFlag(flag OptionFlag) bool {
+	return e.Flags&flag != 0
+}
+
+// SetFlag 设置选项标志
+func (e *Elem) SetFlag(flag OptionFlag) {
+	e.Flags |= flag
+}
+
+// ClearFlag 清除选项标志
+func (e *Elem) ClearFlag(flag OptionFlag) {
+	e.Flags &^= flag
 }
 
 type Cache struct {

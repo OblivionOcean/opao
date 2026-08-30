@@ -34,6 +34,12 @@ type tdialect struct {
 func (d tdialect) Name() string           { return d.name }
 func (d tdialect) Quote(id string) string { return d.quote(id) }
 func (d tdialect) BindVar(n int) string   { return d.bindvar(n) }
+func (d tdialect) BuildCreateTable(table string, elems []Elem) (string, error) {
+	return "", nil
+}
+func (d tdialect) GoTypeToSQLType(t reflect.Type) string {
+	return "TEXT"
+}
 
 var (
 	mysqlDial    = tdialect{"mysql", func(s string) string { return "`" + s + "`" }, func(int) string { return "?" }}
@@ -361,7 +367,7 @@ func TestInsertValues(t *testing.T) {
 	name := "op"
 	age := 3
 	elems := []Elem{
-		{Type: reflect.TypeOf(id), Tag: "id", Option: map[string]string{"autoIncrement": "-"}, AutoInc: true, Ptr: unsafe.Pointer(&id)},
+		{Type: reflect.TypeOf(id), Tag: "id", Flags: OptAutoInc, AutoInc: true, Ptr: unsafe.Pointer(&id)},
 		{Type: reflect.TypeOf(name), Tag: "name", Ptr: unsafe.Pointer(&name)},
 		{Type: reflect.TypeOf(age), Tag: "age", Ptr: unsafe.Pointer(&age)},
 	}
@@ -372,7 +378,7 @@ func TestInsertValues(t *testing.T) {
 
 	// 全自增：值集合为空，三方言 Insert 内联为空串
 	allAI := []Elem{{Type: reflect.TypeOf(id), Tag: "id",
-		Option: map[string]string{"autoIncrement": "-"}, AutoInc: true, Ptr: unsafe.Pointer(&id)}}
+		Flags: OptAutoInc, AutoInc: true, Ptr: unsafe.Pointer(&id)}}
 	if got := InsertValues(allAI); len(got) != 0 {
 		t.Fatalf("全自增应为空: %v", got)
 	}

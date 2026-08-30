@@ -23,7 +23,7 @@ opao 是一款为性能而设计的轻量级 Go 语言 ORM（对象关系映射�
 - [x] **GORM 风格链式查询** - `db.Model(&T{}).Where(...).Find(...)`
 - [x] **GORM 模型迁移映射** - `RegisterSnake` 兼容 `gorm:` 标签与蛇形命名回退
 - [x] **复用外部连接池** - `FromSQLDB` 与既有数据层共存
-- [ ] 自动创建数据表
+- [x] **自动创建数据表** - `AutoMigrate` 自动生成并执行 CREATE TABLE 语句
 - [ ] 主从数据库支持
 - [ ] 高级 SQL 功能（JOIN、子查询等）
 - [ ] 数据库迁移工具
@@ -248,6 +248,102 @@ count, err := objOrm.Count("age > ?", 18)
 fmt.Printf("符合条件的记录数: %d\n", count)
 ```
 
+### 自动迁移 (AutoMigrate)
+
+AutoMigrate 会根据已注册的模型自动生成并执行 `CREATE TABLE IF NOT EXISTS` 语句，支持 MySQL、PostgreSQL 和 SQLite。
+
+```go
+// 定义模型
+type User struct {
+    ID        int64  `db:"id" option:"autoIncrement;primaryKey"`
+    Name      string `db:"name" option:"notNull"`
+    Email     string `db:"email" option:"notNull"`
+    Age       int    `db:"age"`
+    IsActive  bool   `db:"is_active" option:"default=true"`
+    CreatedAt int64  `db:"created_at" option:"default=CURRENT_TIMESTAMP"`
+}
+
+// 注册模型
+err := db.Register("users", &User{})
+if err != nil {
+    panic(err)
+}
+
+// 自动创建表（幂等操作，重复执行不会报错）
+err = db.AutoMigrate(&User{})
+if err != nil {
+    panic(err)
+}
+
+// 支持同时迁移多个模型
+err = db.AutoMigrate(&User{}, &Product{}, &Order{})
+```
+
+#### 支持的 option 选项
+
+| 选项 | 说明 | 示例 |
+|------|------|------|
+| `autoIncrement` | 自增字段 | `option:"autoIncrement"` |
+| `primaryKey` | 主键 | `option:"primaryKey"` |
+| `notNull` | 非空约束 | `option:"notNull"` |
+| `unique` | 唯一约束 | `option:"unique"` |
+| `indexed` | 索引字段 | `option:"indexed"` |
+| `default=xxx` | 默认值 | `option:"default=true"` |
+| `default=CURRENT_TIMESTAMP` | 时间戳默认值 | `option:"default=CURRENT_TIMESTAMP"` |
+
+#### 组合使用
+
+```go
+type Product struct {
+    ID          int64   `db:"id" option:"autoIncrement;primaryKey"`
+    Name        string  `db:"name" option:"notNull;unique"`
+    Price       float64 `db:"price" option:"notNull"`
+    Stock       int     `db:"stock" option:"default=0"`
+    Description string  `db:"description"`
+    CreatedAt   string  `db:"created_at" option:"default=CURRENT_TIMESTAMP"`
+}
+```
+
+#### 生成的 SQL 示例
+
+**MySQL:**
+```sql
+CREATE TABLE IF NOT EXISTS `users` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(255) NOT NULL,
+  `email` VARCHAR(255) NOT NULL,
+  `age` INT,
+  `is_active` TINYINT(1) DEFAULT 'true',
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+```
+
+**PostgreSQL:**
+```sql
+CREATE TABLE IF NOT EXISTS "users" (
+  "id" BIGINT NOT NULL BIGSERIAL,
+  "name" VARCHAR(255) NOT NULL,
+  "email" VARCHAR(255) NOT NULL,
+  "age" INTEGER,
+  "is_active" BOOLEAN DEFAULT 'true',
+  "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY ("id")
+)
+```
+
+**SQLite:**
+```sql
+CREATE TABLE IF NOT EXISTS "users" (
+  "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  "name" TEXT NOT NULL,
+  "email" TEXT NOT NULL,
+  "age" INTEGER,
+  "is_active" INTEGER DEFAULT 'true',
+  "created_at" TEXT DEFAULT CURRENT_TIMESTAMP
+)
+```
+
 ### 链式查询（GORM 风格）
 
 ```go
@@ -388,8 +484,26 @@ type User struct {
 
 ### 可用的 option 选项
 
-- `autoIncrement` - 标记为自增字段
-- `-` - 忽略该字段（与 db 标签连用）
+opao 使用 `option` 标签来定义字段的数据库约束：
+
+| 选项 | 说明 | 示例 |
+|------|------|------|
+| `autoIncrement` | 自增字段 | `option:"autoIncrement"` |
+| `primaryKey` | 主键约束 | `option:"primaryKey"` |
+| `notNull` | 非空约束 | `option:"notNull"` |
+| `unique` | 唯一约束 | `option:"unique"` |
+| `indexed` | 索引字段 | `option:"indexed"` |
+| `default=xxx` | 默认值 | `option:"default=true"` |
+
+多个选项可以用分号分隔组合使用：
+
+```go
+type User struct {
+    ID   int64  `db:"id" option:"autoIncrement;primaryKey"` // 自增主键
+    Name string `db:"name" option:"notNull;unique"`         // 非空唯一
+    Age  int    `db:"age" option:"default=0"`               // 默认值为0
+}
+```
 
 ## 依赖项
 

@@ -56,7 +56,7 @@ func elemsFingerprint(elems []Elem) uint64 {
 		} else {
 			w.writeString("?")
 		}
-		if e.AutoInc || e.Option["autoIncrement"] == "-" {
+		if e.AutoInc || e.Flags&OptAutoInc != 0 {
 			w.writeByte('a')
 		} else {
 			w.writeByte('.')
@@ -101,7 +101,7 @@ func InsertValues(elems []Elem) []any {
 	values := make([]any, 0, len(elems))
 	for i := range elems {
 		e := &elems[i]
-		if e.AutoInc || e.Option["autoIncrement"] == "-" {
+		if e.AutoInc || e.Flags&OptAutoInc != 0 {
 			continue
 		}
 		values = append(values, e.Get())

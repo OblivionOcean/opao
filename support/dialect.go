@@ -14,6 +14,8 @@
 
 package support
 
+import "reflect"
+
 // Dialect 数据库方言抽象，封装标识符引用与占位符差异。
 // 各方言实现位于本目录的子包：support/mysql、support/pg、support/sqlite。
 type Dialect interface {
@@ -23,4 +25,8 @@ type Dialect interface {
 	Quote(identifier string) string
 	// BindVar 返回第 n 个绑定参数占位符，n 从 1 开始
 	BindVar(n int) string
+	// BuildCreateTable 生成 CREATE TABLE IF NOT EXISTS 语句
+	BuildCreateTable(table string, elems []Elem) (string, error)
+	// GoTypeToSQLType 将 Go 类型映射为 SQL 类型字符串
+	GoTypeToSQLType(t reflect.Type) string
 }

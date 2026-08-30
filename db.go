@@ -18,6 +18,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"reflect"
 
 	"github.com/OblivionOcean/opao/v2/support"
@@ -149,4 +150,24 @@ func (db *Database) PrepareStmtConn() (*support.PreparedExec, error) {
 		return nil, errors.New("opao: 数据库未初始化")
 	}
 	return support.NewPreparedExec(db.Conn, 0), nil
+}
+
+// AutoMigrate 自动迁移：根据已注册的模型生成并执行 CREATE TABLE IF NOT EXISTS 语句。
+// models 参数为要迁移的模型实例（指针），必须已通过 Register 注册。
+func (db *Database) AutoMigrate(models ...any) error {
+	if db.Conn == nil {
+		return errors.New("opao: 数据库未初始化")
+	}
+	var dialect support.Dialect
+	switch db.sqlDriverName {
+	case "mysql":
+		dialect = mysql.Dialect
+	case "postgres", "pg", "pgsql":
+		dialect = pg.Dialect
+	case "sqlite3", "sqlite":
+		dialect = sqlite.Dialect
+	default:
+		return fmt.Errorf("opao: 未知的数据库驱动: %s", db.sqlDriverName)
+	}
+	return db.ORM.AutoMigrate(dialect, db.Conn, models...)
 }

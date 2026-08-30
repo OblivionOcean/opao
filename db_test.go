@@ -81,7 +81,7 @@ func TestRegisterAndLoadMetadata(t *testing.T) {
 		if !want[e.Tag] {
 			t.Fatalf("意外字段: %s", e.Tag)
 		}
-		if e.Option["autoIncrement"] == "-" && e.Tag != "id" {
+		if e.Flags&support.OptAutoInc != 0 && e.Tag != "id" {
 			t.Fatalf("autoIncrement 标记错位: %s", e.Tag)
 		}
 	}

@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
-	github.com/OblivionOcean/opao/v2 v0.0.0
+	github.com/OblivionOcean/opao/v2 v2.0.1
 	modernc.org/sqlite v1.34.1
 )
 
